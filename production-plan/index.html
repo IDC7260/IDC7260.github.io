@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>IDC 생산계획서</title>
+<link rel="icon" href="./IDCIcon-512.png" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="stylesheet" href="./style.css" type="text/css">
+</head>
+<body>
+  <!-- PWA 설치 버튼 -->
+  <button id="install-btn" type="button">📲 앱 설치</button>
+
+  <!-- 1. 초기 화면: 위아래 1호기 / 2호기 선택 -->
+  <section id="select-screen">
+    <button type="button" class="line-btn line-1" id="btn-line-1">
+      <span class="line-badge">LINE 01</span>
+      <span class="line-title">1호기</span>
+      <span class="line-sub">터치하여 1호기 생산계획서 보기</span>
+    </button>
+
+    <button type="button" class="line-btn line-2" id="btn-line-2">
+      <span class="line-badge">LINE 02</span>
+      <span class="line-title">2호기</span>
+      <span class="line-sub">터치하여 2호기 생산계획서 보기</span>
+    </button>
+  </section>
+
+  <!-- 2. 생산계획서 좌우 슬라이드 화면 -->
+  <section id="plan-screen">
+    <header class="plan-header">
+      <div class="header-left">
+        <button type="button" class="nav-btn" id="btn-back">← 호기 선택</button>
+        <h1 id="current-header-title">1호기 생산계획서</h1>
+      </div>
+      <div class="header-right">
+        <button type="button" class="nav-btn" id="btn-prev-day">◀ 이전일</button>
+        <button type="button" class="nav-btn" id="btn-next-day">다음일 ▶</button>
+        <button type="button" class="nav-btn switch-btn" id="btn-switch-line">2호기 전환</button>
+      </div>
+    </header>
+
+    <main id="plan-viewport">
+      <!-- InfinitePlanRenderer가 여기에 가로 무한 슬라이더를 렌더링 -->
+    </main>
+  </section>
+</body>
+<script src="app.js"></script>
+</html>
