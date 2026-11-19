@@ -8,6 +8,9 @@
 <link rel="icon" href="./IDCIcon-512.png" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="stylesheet" href="./style.css" type="text/css">
+<!-- 엑셀(.xlsx, .xls) 파싱 및 내보내기용 SheetJS / ExcelJS -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
   <!-- PWA 설치 버튼 -->
@@ -100,10 +103,59 @@
       </div>
     </header>
 
+    <!-- 권한자 전용 생산계획 편집 툴바 (canEdit === true 인 사원에게만 표시) -->
+    <div id="planner-toolbar" class="planner-toolbar">
+      <div class="planner-toolbar-left">
+        <span class="planner-badge">계획 편집 권한</span>
+        <span id="planner-status-text">현재 주차/라인 수정 가능</span>
+      </div>
+      <div class="planner-toolbar-right">
+        <button type="button" class="tool-btn" id="btn-add-next-week">➕ 다음 주차 생성</button>
+        <button type="button" class="tool-btn" id="btn-pick-custom-week">📅 특정 주 생성</button>
+        <input type="date" id="custom-week-date-input" style="position:absolute; opacity:0; pointer-events:none; width:0; height:0;" />
+        <button type="button" class="tool-btn" id="btn-excel-download">📥 주간 엑셀 받기</button>
+        <label for="excel-upload-input" class="tool-btn">📂 주간 엑셀 업로드</label>
+        <input type="file" id="excel-upload-input" accept=".xlsx, .xls" style="display: none;" />
+        <button type="button" class="tool-btn primary" id="btn-open-manual-edit">✏️ 현재 일자 수동 수정</button>
+      </div>
+    </div>
+
     <main id="plan-viewport">
       <!-- InfinitePlanRenderer가 여기에 가로 무한 슬라이더를 렌더링 -->
     </main>
   </section>
+
+  <!-- 4. 수동 수정 모달 (권한자 전용) -->
+  <div id="plan-edit-modal" class="edit-modal-backdrop">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3 id="edit-modal-title">생산계획서 수동 수정</h3>
+        <button type="button" id="btn-close-edit-modal" class="edit-modal-close">✕</button>
+      </div>
+      <div class="edit-modal-body">
+        <table class="edit-table">
+          <thead>
+            <tr>
+              <th style="width: 64px;">순번</th>
+              <th style="min-width: 180px;">품명 및 사양</th>
+              <th style="width: 110px;">수량</th>
+              <th style="width: 110px;">공정</th>
+              <th style="min-width: 140px;">비고 (※)</th>
+              <th style="width: 64px;">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="edit-modal-tbody"></tbody>
+        </table>
+      </div>
+      <div class="edit-modal-footer">
+        <button type="button" class="tool-btn" id="btn-modal-add-row">➕ 행 추가</button>
+        <div class="edit-modal-actions">
+          <button type="button" class="tool-btn" id="btn-modal-cancel">취소</button>
+          <button type="button" class="tool-btn primary" id="btn-modal-save">💾 저장하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 <script type="module" src="app.js"></script>
 </html>
