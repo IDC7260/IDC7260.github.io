@@ -13,8 +13,14 @@
   <!-- PWA 설치 버튼 -->
   <button id="install-btn" type="button">📲 앱 설치</button>
 
-  <!-- 1. 초기 화면: 위아래 1호기 / 2호기 선택 -->
+  <!-- 1. 초기 화면: 임프린팅 / 1호기 / 2호기 선택 -->
   <section id="select-screen">
+    <button type="button" class="line-btn line-imprinting" id="btn-line-imprinting">
+      <span class="line-badge">IMPRINTING</span>
+      <span class="line-title">임프린팅</span>
+      <span class="line-sub">터치하여 임프린팅 생산계획서 보기</span>
+    </button>
+
     <button type="button" class="line-btn line-1" id="btn-line-1">
       <span class="line-badge">LINE 01</span>
       <span class="line-title">1호기</span>
@@ -33,12 +39,12 @@
     <header class="plan-header">
       <div class="header-left">
         <button type="button" class="nav-btn" id="btn-back">← 호기 선택</button>
-        <h1 id="current-header-title">1호기 생산계획서</h1>
+        <h1 id="current-header-title">생산계획서</h1>
       </div>
       <div class="header-right">
         <button type="button" class="nav-btn" id="btn-prev-day">◀ 이전일</button>
         <button type="button" class="nav-btn" id="btn-next-day">다음일 ▶</button>
-        <button type="button" class="nav-btn switch-btn" id="btn-switch-line">2호기 전환</button>
+        <button type="button" class="nav-btn switch-btn" id="btn-switch-line">라인 전환</button>
       </div>
     </header>
 

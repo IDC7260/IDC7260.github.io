@@ -16,7 +16,7 @@ html, body {
 }
 
 /* =========================================
-   1. 초기 화면: 위아래 1호기 / 2호기 분할 버튼
+1. 초기 화면: 위아래 인프린트 / 1호기 / 2호기 분할 버튼
    ========================================= */
 #select-screen {
   display: flex;
@@ -35,12 +35,17 @@ html, body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   transition: filter 0.2s ease;
 }
 
 .line-btn:hover {
   filter: brightness(1.08);
+}
+
+.line-imprinting {
+  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+  border-bottom: 3px solid #0f172a;
 }
 
 .line-1 {
@@ -62,13 +67,13 @@ html, body {
 }
 
 .line-title {
-  font-size: clamp(2.5rem, 6vw, 4.2rem);
+  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
   font-weight: 800;
   color: #ffffff;
 }
 
 .line-sub {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -90,7 +95,7 @@ html, body {
 }
 
 /* =========================================
-   2. 생산계획서 뷰어 화면 (반응형 레이아웃)
+2. 생산계획서 뷰어 화면 (반응형 레이아웃)
    ========================================= */
 #plan-screen {
   display: none;
@@ -283,7 +288,7 @@ table.plan-table td:nth-child(2) {
 }
 
 /* =========================================
-   3. 모바일 전용 미디어 쿼리 (768px 이하)
+3. 모바일 전용 미디어 쿼리 (768px 이하)
    ========================================= */
 @media (max-width: 768px) {
   .plan-header {

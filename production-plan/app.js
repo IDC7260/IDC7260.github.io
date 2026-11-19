@@ -1,5 +1,5 @@
 /* =========================================
-   1. 서비스 워커 등록 및 자동 새로고침
+1. 서비스 워커 등록 및 자동 새로고침
    ========================================= */
 if ('serviceWorker' in navigator) {
   let swRegistration;
@@ -24,9 +24,38 @@ if ('serviceWorker' in navigator) {
 }
 
 /* =========================================
-   2. 2026년 11월 2주차 주간 통합생산계획서 데이터
+2. 라인 정보 및 주간 통합생산계획서 데이터
    ========================================= */
+const LINE_META = {
+  imprinting: { label: '임프린팅', next: 1 },
+  1: { label: '1호기', next: 2 },
+  2: { label: '2호기', next: 'imprinting' }
+};
+
 const SAMPLE_WEEK_DATA = {
+  imprinting: [
+    { dayLabel: '월요일 (11/09)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '화요일 (11/10)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '수요일 (11/11)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '목요일 (11/12)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '금요일 (11/13)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '토요일 (11/14)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]},
+    { dayLabel: '일요일 (11/15)', imageUrl: '', rows: [
+      { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
+    ]}
+  ],
   1: [
     { dayLabel: '월요일 (11/09)', imageUrl: '', rows: [
       { seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-' }
@@ -76,27 +105,30 @@ const SAMPLE_WEEK_DATA = {
 };
 
 /* =========================================
-   3. 좌우 무한 루프 날짜 슬라이더 렌더러
+3. 좌우 무한 루프 날짜 슬라이더 렌더러
    ========================================= */
 class InfinitePlanRenderer {
   constructor(viewportId) {
     this.viewport = document.getElementById(viewportId);
     this.slider = null;
     this.days = [];
-    this.currentLine = 1;
+    this.currentLine = 'imprinting';
     this.currentDayIdx = 1; // 1 ~ days.length (0과 length+1은 무한루프용 클론)
     this.isAnimating = false;
     this.ANIM_TIME = 400;
     this.eventListeners = [];
   }
 
-  loadLine(lineNumber, keepDayIdx = null) {
+  loadLine(lineKey, keepDayIdx = null) {
     this.destroy();
-    this.currentLine = lineNumber;
-    this.days = SAMPLE_WEEK_DATA[lineNumber] || [];
+    this.currentLine = lineKey;
+    this.days = SAMPLE_WEEK_DATA[lineKey] || [];
 
-    document.getElementById('current-header-title').textContent = `${lineNumber}호기 생산계획서 (2026년 11월 2주차)`;
-    document.getElementById('btn-switch-line').textContent = `${lineNumber === 1 ? '2호기' : '1호기'} 전환`;
+    const meta = LINE_META[lineKey];
+    const nextMeta = LINE_META[meta.next];
+
+    document.getElementById('current-header-title').textContent = `${meta.label} 생산계획서 (2026년 11월 2주차)`;
+    document.getElementById('btn-switch-line').textContent = `${nextMeta.label} 전환`;
 
     this.renderSlides();
 
@@ -115,6 +147,7 @@ class InfinitePlanRenderer {
   createSlideElement(dayData) {
     const slide = document.createElement('section');
     slide.className = 'day-slide';
+    const lineLabel = LINE_META[this.currentLine].label;
 
     let contentHtml = '';
     if (dayData.imageUrl) {
@@ -154,7 +187,7 @@ class InfinitePlanRenderer {
 
     slide.innerHTML = `
       <div class="day-banner">
-        <h2>📅 ${this.currentLine}호기 — ${dayData.dayLabel}</h2>
+        <h2>📅 ${lineLabel} — ${dayData.dayLabel}</h2>
         <span class="swipe-hint">◀ 좌우로 밀거나 휠을 돌려 날짜 이동 ▶</span>
       </div>
       <div class="sheet-card">
@@ -199,7 +232,6 @@ class InfinitePlanRenderer {
     this.currentDayIdx += dir;
     this.moveTo(this.currentDayIdx, true);
 
-    // 클론 영역(0 또는 total+1)에 도달하면 애니메이션 직후 실제 위치로 순간이동
     if (this.currentDayIdx <= 0 || this.currentDayIdx >= total + 1) {
       setTimeout(() => {
         this.currentDayIdx = this.currentDayIdx <= 0 ? total : 1;
@@ -227,7 +259,6 @@ class InfinitePlanRenderer {
   }
 
   initEvents() {
-    // 1. 마우스 휠 (좌우 또는 상하 스크롤 시 날짜 이동)
     this.addListener(this.viewport, 'wheel', (e) => {
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) > 20) {
@@ -235,7 +266,6 @@ class InfinitePlanRenderer {
       }
     }, { passive: true });
 
-    // 2. 마우스 드래그
     let isMouseDown = false;
     let startX = 0;
 
@@ -253,7 +283,6 @@ class InfinitePlanRenderer {
       }
     }, { passive: true });
 
-    // 3. 터치 스와이프
     let touchStartX = 0;
     this.addListener(this.viewport, 'touchstart', (e) => {
       if (e.touches.length > 1) return;
@@ -268,13 +297,11 @@ class InfinitePlanRenderer {
       }
     }, { passive: true });
 
-    // 4. 키보드 좌우 화살표 지원
     this.addListener(window, 'keydown', (e) => {
       if (e.key === 'ArrowRight') this.step(1);
       if (e.key === 'ArrowLeft') this.step(-1);
     });
 
-    // 5. 창 크기 변경 시 위치 보정
     this.addListener(window, 'resize', () => {
       this.moveTo(this.currentDayIdx, false);
     });
@@ -282,16 +309,16 @@ class InfinitePlanRenderer {
 }
 
 /* =========================================
-   4. 화면 전환 및 초기화 컨트롤러
+4. 화면 전환 및 초기화 컨트롤러
    ========================================= */
 const planRenderer = new InfinitePlanRenderer('plan-viewport');
 const selectScreen = document.getElementById('select-screen');
 const planScreen = document.getElementById('plan-screen');
 
-function openLine(lineNumber, keepDayIdx = null) {
+function openLine(lineKey, keepDayIdx = null) {
   selectScreen.style.display = 'none';
   planScreen.style.display = 'flex';
-  planRenderer.loadLine(lineNumber, keepDayIdx);
+  planRenderer.loadLine(lineKey, keepDayIdx);
 }
 
 function backToSelect() {
@@ -300,18 +327,19 @@ function backToSelect() {
   selectScreen.style.display = 'flex';
 }
 
+document.getElementById('btn-line-imprinting').addEventListener('click', () => openLine('imprinting'));
 document.getElementById('btn-line-1').addEventListener('click', () => openLine(1));
 document.getElementById('btn-line-2').addEventListener('click', () => openLine(2));
 document.getElementById('btn-back').addEventListener('click', backToSelect);
 document.getElementById('btn-prev-day').addEventListener('click', () => planRenderer.step(-1));
 document.getElementById('btn-next-day').addEventListener('click', () => planRenderer.step(1));
 document.getElementById('btn-switch-line').addEventListener('click', () => {
-  const nextLine = planRenderer.currentLine === 1 ? 2 : 1;
+  const nextLine = LINE_META[planRenderer.currentLine].next;
   openLine(nextLine, planRenderer.currentDayIdx);
 });
 
 /* =========================================
-   5. PWA 설치 프롬프트 처리
+5. PWA 설치 프롬프트 처리
    ========================================= */
 let deferredPrompt;
 const installBtn = document.getElementById('install-btn');
