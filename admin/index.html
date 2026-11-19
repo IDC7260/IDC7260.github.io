@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>IDC 생산계획서 - 사원 계정 관리</title>
+<link rel="icon" href="../IDCIcon-512.png" />
+<style>
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; background: #f1f5f9; color: #0f172a; }
+  .center-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: #0f172a; }
+  .card { background: #fff; border-radius: 14px; padding: 26px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+  .login-box { width: 100%; max-width: 360px; text-align: center; }
+  .badge { display: inline-block; background: #fef2f2; color: #dc2626; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin-bottom: 10px; }
+  input, select { width: 100%; padding: 11px 13px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; margin-bottom: 10px; }
+  input:focus { outline: none; border-color: #2563eb; }
+  button { cursor: pointer; border: none; border-radius: 8px; font-weight: 700; transition: 0.2s; }
+  .btn-primary { width: 100%; padding: 12px; background: #2563eb; color: #fff; font-size: 1rem; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .error-msg { color: #dc2626; font-size: 0.85rem; min-height: 20px; text-align: left; margin: 4px 0 8px; font-weight: 600; }
+
+  .admin-header { background: #0f172a; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .admin-header h1 { margin: 0; font-size: 1.15rem; }
+  .btn-logout { background: #334155; color: #e2e8f0; padding: 8px 14px; font-size: 0.85rem; }
+  .container { max-width: 980px; margin: 24px auto; padding: 0 16px; display: grid; gap: 20px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.92rem; }
+  th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+  th { background: #f8fafc; color: #475569; font-weight: 700; }
+  .status-active { color: #16a34a; background: #dcfce7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+  .status-blocked { color: #d97706; background: #fef3c7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+  .btn-sm { padding: 6px 10px; font-size: 0.82rem; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+  <!-- 1. 관리자 로그인 화면 -->
+  <section id="admin-login-screen" class="center-wrap">
+    <div class="card login-box">
+      <div class="badge">ADMIN ONLY</div>
+      <h2 style="margin:0 0 8px;">관리자 인증</h2>
+      <p style="margin:0 0 20px; color:#64748b; font-size:0.9rem;">관리자 비밀번호를 입력하세요</p>
+      <form id="admin-login-form">
+        <input type="password" id="admin-password" placeholder="관리자 비밀번호" required />
+        <p id="admin-login-error" class="error-msg"></p>
+        <button type="submit" class="btn-primary">접속하기</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 2. 관리자 대시보드 화면 -->
+  <section id="admin-dashboard" style="display: none;">
+    <header class="admin-header">
+      <h1>🛠️ IDC 사원 계정 관리</h1>
+      <button type="button" id="btn-admin-logout" class="btn-logout">로그아웃</button>
+    </header>
+
+    <main class="container">
+      <!-- 관리자 직접 등록 카드 -->
+      <div class="card">
+        <h3 style="margin:0 0 14px;">➕ 사원 직접 등록 (즉시 승인)</h3>
+        <form id="create-emp-form">
+          <div class="form-grid">
+            <div>
+              <label style="font-size:0.8rem; font-weight:700; color:#475569;">사번 (아이디)</label>
+              <input type="text" id="emp-id" placeholder="예: 1001" required style="margin-bottom:0;" />
+            </div>
+            <div>
+              <label style="font-size:0.8rem; font-weight:700; color:#475569;">사원명 / 직책</label>
+              <input type="text" id="emp-name" placeholder="예: 홍길동 반장" required style="margin-bottom:0;" />
+            </div>
+            <div>
+              <label style="font-size:0.8rem; font-weight:700; color:#475569;">소속 라인</label>
+              <select id="emp-dept" style="margin-bottom:0;">
+                <option value="임프린팅">임프린팅</option>
+                <option value="1호기">1호기</option>
+                <option value="2호기">2호기</option>
+                <option value="공통/관리">공통/관리</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.8rem; font-weight:700; color:#475569;">비밀번호</label>
+              <input type="text" id="emp-password" placeholder="예: 1234" required style="margin-bottom:0;" />
+            </div>
+            <div>
+              <button type="submit" class="btn-primary" style="padding:11px;">등록하기</button>
+            </div>
+          </div>
+          <p id="create-msg" class="error-msg" style="margin-top:8px;"></p>
+        </form>
+      </div>
+
+      <!-- 등록된 사원 목록 카드 -->
+      <div class="card">
+        <h3 style="margin:0 0 6px;">📋 사원 목록 (승인 / 비밀번호 변경 / 완전 삭제)</h3>
+        <p style="margin:0 0 12px; font-size:0.85rem; color:#64748b;">사원이 직접 신청한 계정은 최상단에 표시됩니다. '승인하기'를 누르면 즉시 열람 가능합니다.</p>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>사번(ID)</th>
+                <th>사원명</th>
+                <th>소속</th>
+                <th>비밀번호</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="emp-table-body">
+              <tr><td colspan="6" style="text-align:center; color:#64748b;">불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

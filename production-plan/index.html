@@ -15,6 +15,8 @@
 
   <!-- 1. 초기 화면: 임프린팅 / 1호기 / 2호기 선택 -->
   <section id="select-screen">
+    <button type="button" class="logout-top-btn" id="btn-logout-select" style="display: none;">로그아웃</button>
+
     <button type="button" class="line-btn line-imprinting" id="btn-line-imprinting">
       <span class="line-badge">IMPRINTING</span>
       <span class="line-title">임프린팅</span>
@@ -34,8 +36,56 @@
     </button>
   </section>
 
-  <!-- 2. 생산계획서 좌우 슬라이드 화면 -->
-  <section id="plan-screen">
+  <!-- 2. 사원 로그인 / 계정 신청 화면 (미인증 상태에서 호기 진입 시 표시) -->
+  <section id="login-screen" style="display: none;">
+    <div class="login-card">
+      <div class="login-badge">IDC INTERNAL</div>
+      <h2>사원 인증 필요</h2>
+      <p id="login-target-desc" class="login-sub">생산계획서를 열람하려면 로그인하세요</p>
+
+      <!-- 로그인 / 계정 신청 탭 -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="tab-login">로그인</button>
+        <button type="button" class="auth-tab" id="tab-signup">계정 신청</button>
+      </div>
+
+      <!-- 로그인 폼 -->
+      <form id="login-form">
+        <input type="text" id="login-id" placeholder="사번 (예: 1001)" required autocomplete="username" />
+        <input type="password" id="login-password" placeholder="비밀번호" required autocomplete="current-password" />
+        <p id="login-error" class="login-error"></p>
+        <button type="submit" id="btn-login" class="login-submit-btn">로그인 후 계획서 보기</button>
+      </form>
+
+      <!-- 계정 신청(가입) 폼 -->
+      <form id="signup-form" style="display: none;">
+        <input type="text" id="signup-name" placeholder="성명 / 직책 (예: 홍길동 반장)" required />
+        <select id="signup-dept" class="login-select">
+          <option value="임프린팅">소속: 임프린팅</option>
+          <option value="1호기">소속: 1호기</option>
+          <option value="2호기">소속: 2호기</option>
+          <option value="공통/관리">소속: 공통/관리</option>
+        </select>
+        <input type="text" id="signup-id" placeholder="사용할 사번 (예: 1001)" required />
+        <input type="password" id="signup-password" placeholder="사용할 비밀번호 (예: 1234)" required />
+        <p id="signup-error" class="login-error"></p>
+        <button type="submit" id="btn-signup" class="login-submit-btn">가입 신청하기</button>
+      </form>
+
+      <!-- 승인 대기 안내 박스 -->
+      <div id="pending-box" style="display: none; text-align: center; padding: 10px 0;">
+        <p style="font-size: 1.05rem; font-weight: 700; color: #d97706; margin: 0 0 8px;">⏳ 관리자 승인 대기 중</p>
+        <p id="pending-user-info" style="font-size: 0.88rem; color: #475569; line-height: 1.5; margin: 0 0 18px;"></p>
+        <button type="button" id="btn-pending-refresh" class="login-submit-btn" style="margin-bottom: 8px;">승인 상태 새로고침</button>
+        <button type="button" id="btn-pending-logout" style="width:100%; padding:10px; background:#e2e8f0; color:#334155; border:none; border-radius:10px; font-weight:700; cursor:pointer;">다른 계정으로 로그인</button>
+      </div>
+
+      <button type="button" id="btn-login-cancel" class="login-cancel-btn">← 호기 선택으로 돌아가기</button>
+    </div>
+  </section>
+
+  <!-- 3. 생산계획서 좌우 슬라이드 화면 -->
+  <section id="plan-screen" style="display: none;">
     <header class="plan-header">
       <div class="header-left">
         <button type="button" class="nav-btn" id="btn-back">← 호기 선택</button>
@@ -46,6 +96,7 @@
         <button type="button" class="nav-btn" id="btn-prev-day">◀ 이전일</button>
         <button type="button" class="nav-btn" id="btn-next-day">다음일 ▶</button>
         <button type="button" class="nav-btn switch-btn" id="btn-switch-line">라인 전환</button>
+        <button type="button" class="nav-btn logout-nav-btn" id="btn-logout-plan">로그아웃</button>
       </div>
     </header>
 
