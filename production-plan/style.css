@@ -80,17 +80,25 @@ html, body {
 #install-btn {
   display: none;
   position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 100;
-  background: #ffffff;
-  color: #0f172a;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 999px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 16px;                /* 왼쪽 여백 */
+  right: 16px;               /* 오른쪽 여백 (left와 right를 같이 주면 가로로 쭉 늘어남) */
+  width: calc(100% - 32px);  /* 전체 너비에서 양옆 여백 제외 */
+  max-width: 480px;          /* PC나 태블릿에서 너무 길어지는 것 방지 */
+  margin: 0 auto;            /* max-width 적용 시 정중앙 정렬 */
+  z-index: 999;
+
+  /* 높이 및 글자 확대 */
+  padding: 16px 20px;
+  font-size: 1.05rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  background: #0f172a;       /* 어두운 배경 + 흰 글씨로 강조 (원하시면 기존 #ffffff 유지 가능) */
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;       /* 알약 대신 모서리가 둥근 사각형 바 형태 */
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
