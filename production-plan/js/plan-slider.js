@@ -132,12 +132,13 @@ export class InfinitePlanRenderer {
 
     const { dbData, selectedWeekKey } = this.getState();
     const meta = LINE_META[lineKey];
-    const nextMeta = LINE_META[meta.next];
     const weekObj = dbData?.weeks?.[selectedWeekKey];
-    const weekTitle = weekObj ? `${weekObj.week}주차` : '주차 없음';
 
-    document.getElementById('current-header-title').textContent = `${meta.label} 생산계획서 (${weekTitle})`;
-    document.getElementById('btn-switch-line').textContent = `${nextMeta.label} 전환`;
+    document.getElementById('current-header-title').textContent = weekObj ? (weekObj.period || meta.label) : '일정 없음';
+    const lineSelectEl = document.getElementById('line-select');
+    if (lineSelectEl) {
+      lineSelectEl.value = String(lineKey);
+    }
 
     if (!dbData) {
       this.viewport.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#475569;font-weight:700;">데이터를 불러오는 중입니다...</div>`;
@@ -145,7 +146,7 @@ export class InfinitePlanRenderer {
     }
 
     if (!weekObj) {
-      this.viewport.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#475569;font-weight:700;">생성된 주차가 없습니다. 상단 [➕ 다음 주차 생성]을 눌러 시작하세요.</div>`;
+      this.viewport.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#475569;font-weight:700;">생성된 주차가 없습니다. 상단 [➕ 다음 주간 생성]을 눌러 시작하세요.</div>`;
       return;
     }
 
@@ -160,24 +161,25 @@ export class InfinitePlanRenderer {
     }
 
     this.moveTo(this.currentDayIdx, false);
-    this.updatePlannerStatusLabel();
+    this.updateHeaderTitle();
     this.initEvents();
   }
 
-  updatePlannerStatusLabel() {
-    const labelEl = document.getElementById('planner-status-text');
-    if (!labelEl || !this.days.length) return;
+  updateHeaderTitle() {
+    if (!this.days.length) return;
     const dayObj = this.days[this.currentDayIdx - 1];
     const lineLabel = LINE_META[this.currentLine]?.label || '';
-    if (dayObj) {
-      labelEl.textContent = `${lineLabel} · ${dayObj.dayLabel}`;
-    }
+    if (!dayObj) return;
+
+const headerTitleEl = document.getElementById('current-header-title');
+if (headerTitleEl) {
+  headerTitleEl.textContent = dayObj.dayLabel; // 예: "11월 20일 (금요일)"
+}
   }
 
   createSlideElement(dayData, dayIdx) {
     const slide = document.createElement('section');
     slide.className = 'day-slide';
-    const lineLabel = LINE_META[this.currentLine].label;
 
     let contentHtml = '';
     if (dayData.imageUrl) {
@@ -286,10 +288,6 @@ export class InfinitePlanRenderer {
     }
 
     slide.innerHTML = `
-      <div class="day-banner">
-        <h2>📅 ${lineLabel} — ${dayData.dayLabel}</h2>
-        <span class="swipe-hint">◀ 좌우로 밀거나 휠을 돌려 날짜 이동 ▶</span>
-      </div>
       <div class="sheet-card">
         ${contentHtml}
       </div>
@@ -335,13 +333,13 @@ export class InfinitePlanRenderer {
       setTimeout(() => {
         this.currentDayIdx = this.currentDayIdx <= 0 ? total : 1;
         this.moveTo(this.currentDayIdx, false);
-        this.updatePlannerStatusLabel();
+        this.updateHeaderTitle();
         this.isAnimating = false;
       }, this.ANIM_TIME);
       return;
     }
 
-    this.updatePlannerStatusLabel();
+    this.updateHeaderTitle();
     setTimeout(() => {
       this.isAnimating = false;
     }, this.ANIM_TIME);

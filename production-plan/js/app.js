@@ -9,8 +9,7 @@ import {
   formatDateYMD,
   getMondayOfDate,
   getSortedWeekKeys,
-  findCurrentWeekKey,
-  getMonthWeekNumberByEndDate
+  findCurrentWeekKey
 } from './utils.js';
 import { InfinitePlanRenderer } from './plan-slider.js';
 import { syncLatestTemplateFile, initExcelSyncHandlers } from './excel-sync.js';
@@ -58,8 +57,8 @@ let pendingLine = null;
 const loginScreen = document.getElementById('login-screen');
 const selectScreen = document.getElementById('select-screen');
 const planScreen = document.getElementById('plan-screen');
+const lineSelectEl = document.getElementById('line-select');
 const weekSelectEl = document.getElementById('week-select');
-const btnLogoutSelect = document.getElementById('btn-logout-select');
 const plannerToolbar = document.getElementById('planner-toolbar');
 
 const getAppState = () => ({ dbData, selectedWeekKey, isAuthorized, canEditPlan });
@@ -90,9 +89,8 @@ function renderWeekOptions(weeksObj) {
 
   weekSelectEl.innerHTML = visibleKeys.map((key) => {
     const w = weeksObj[key];
-    const mPrefix = w.month ? `${w.month}월 ` : '';
     const shortPeriod = w.period ? w.period.split(' ').slice(1).join(' ') : key;
-    return `<option value="${key}">${mPrefix}${w.week}주차 (${shortPeriod})</option>`;
+    return `<option value="${key}">${shortPeriod}</option>`;
   }).join('');
 
   weekSelectEl.value = selectedWeekKey;
@@ -144,9 +142,7 @@ const pendingBox = document.getElementById('pending-box');
 const authTabsWrap = document.querySelector('.auth-tabs');
 
 function updatePlannerToolbarVisibility() {
-  if (plannerToolbar) {
-    plannerToolbar.style.display = (isAuthorized && canEditPlan) ? 'flex' : 'none';
-  }
+  plannerToolbar.style.display = (isAuthorized && canEditPlan) ? 'flex' : 'none';
 }
 
 function showAuthTab(mode) {
@@ -176,11 +172,9 @@ function showPendingApprovalUI() {
 
 function openAuthPrompt(targetLineKey) {
   pendingLine = targetLineKey;
-  const lineLabel = LINE_META[targetLineKey]?.label || '';
-  const descEl = document.getElementById('login-target-desc');
-  if (descEl) {
-    descEl.textContent = `${lineLabel} 생산계획서를 열람하려면 로그인하세요`;
-  }
+  const lineLabel = LINE_META[targetLineKey].label;
+  document.getElementById('login-target-desc').textContent =
+    `${lineLabel} 생산계획서를 열람하려면 로그인하세요`;
 
   selectScreen.style.display = 'none';
   planScreen.style.display = 'none';
@@ -204,14 +198,12 @@ async function watchEmployeeSession(empId) {
     canEditPlan = false;
     currentEmpInfo = null;
     isPendingApproval = false;
-    btnLogoutSelect.style.display = 'none';
     updatePlannerToolbarVisibility();
     stopPlanDatabaseListener();
     return;
   }
 
   await authReady;
-  btnLogoutSelect.style.display = 'block';
 
   unsubscribeEmpWatch = onValue(ref(db, `employees/${empId}`), (snap) => {
     const emp = snap.val();
@@ -274,7 +266,6 @@ function logoutEmployee(askConfirm = true) {
     unsubscribeEmpWatch = null;
   }
   stopPlanDatabaseListener();
-  btnLogoutSelect.style.display = 'none';
   if (planScreen.style.display === 'flex') {
     backToSelect();
   } else if (loginScreen.style.display === 'flex') {
@@ -367,7 +358,6 @@ document.getElementById('btn-login-cancel').addEventListener('click', () => {
   selectScreen.style.display = 'flex';
 });
 
-btnLogoutSelect.addEventListener('click', () => logoutEmployee(true));
 document.getElementById('btn-logout-plan').addEventListener('click', () => logoutEmployee(true));
 
 function openLine(lineKey, keepDayIdx = null) {
@@ -379,6 +369,7 @@ function openLine(lineKey, keepDayIdx = null) {
   loginScreen.style.display = 'none';
   selectScreen.style.display = 'none';
   planScreen.style.display = 'flex';
+  lineSelectEl.value = String(lineKey);
   updatePlannerToolbarVisibility();
   planRenderer.loadLine(lineKey, keepDayIdx);
 }
@@ -393,12 +384,11 @@ function backToSelect() {
 document.getElementById('btn-line-imprinting').addEventListener('click', () => openLine('imprinting'));
 document.getElementById('btn-line-1').addEventListener('click', () => openLine(1));
 document.getElementById('btn-line-2').addEventListener('click', () => openLine(2));
-document.getElementById('btn-back').addEventListener('click', backToSelect);
 document.getElementById('btn-prev-day').addEventListener('click', () => planRenderer.step(-1));
 document.getElementById('btn-next-day').addEventListener('click', () => planRenderer.step(1));
-document.getElementById('btn-switch-line').addEventListener('click', () => {
-  const nextLine = LINE_META[planRenderer.currentLine].next;
-  openLine(nextLine, planRenderer.currentDayIdx);
+
+lineSelectEl.addEventListener('change', (e) => {
+  openLine(e.target.value, planRenderer.currentDayIdx);
 });
 
 weekSelectEl.addEventListener('change', (e) => {
@@ -407,7 +397,7 @@ weekSelectEl.addEventListener('change', (e) => {
 });
 
 /* =========================================
-4. 권한자 전용: 주차 생성 & 수동 수정 모달
+4. 권한자 전용: 주간 계획 생성 & 수동 수정 모달
    ========================================= */
 const editModal = document.getElementById('plan-edit-modal');
 const editModalTitle = document.getElementById('edit-modal-title');
@@ -446,25 +436,24 @@ async function createOrNavigateToWeekByMonday(mondayDate) {
   const monday = getMondayOfDate(mondayDate);
   const mondayKey = formatDateYMD(monday);
 
-  if (dbData?.weeks?.[mondayKey]) {
+  if (dbData && dbData.weeks && dbData.weeks[mondayKey]) {
     selectedWeekKey = mondayKey;
     renderWeekOptions(dbData.weeks);
     planRenderer.loadLine(planRenderer.currentLine, planRenderer.currentDayIdx);
-    alert(`이미 생성된 주차입니다. [${dbData.weeks[mondayKey].period}] 화면으로 이동합니다.`);
+    alert(`이미 생성된 일정입니다. [${dbData.weeks[mondayKey].period}] 화면으로 이동합니다.`);
     return;
   }
 
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
 
-  const { year, month, weekOfMonth } = getMonthWeekNumberByEndDate(monday);
   const startYear = monday.getFullYear();
   const endYear = sunday.getFullYear();
   const periodStr = startYear === endYear
     ? `${startYear}년 ${monday.getMonth() + 1}월 ${monday.getDate()}일 ~ ${sunday.getMonth() + 1}월 ${sunday.getDate()}일`
     : `${startYear}년 ${monday.getMonth() + 1}월 ${monday.getDate()}일 ~ ${endYear}년 ${sunday.getMonth() + 1}월 ${sunday.getDate()}일`;
 
-  if (!confirm(`[${year}년 ${month}월 ${weekOfMonth}주차]\n(${periodStr})\n생산계획서 주차를 새로 생성하시겠습니까?`)) {
+  if (!confirm(`[${periodStr}]\n생산계획서 일정을 새로 생성하시겠습니까?`)) {
     return;
   }
 
@@ -483,9 +472,8 @@ async function createOrNavigateToWeekByMonday(mondayDate) {
   };
 
   const newWeekObj = {
-    year,
-    month,
-    week: weekOfMonth,
+    year: monday.getFullYear(),
+    month: monday.getMonth() + 1,
     period: periodStr,
     lines: {
       '1': buildEmptyDays(),
@@ -506,17 +494,17 @@ async function createOrNavigateToWeekByMonday(mondayDate) {
     renderWeekOptions(dbData.weeks);
     planRenderer.loadLine(planRenderer.currentLine, planRenderer.currentDayIdx);
 
-    alert(`[${year}년 ${month}월 ${weekOfMonth}주차]가 생성되었습니다. 이제 엑셀 파일을 업로드하거나 수동 입력할 수 있습니다.`);
+    alert(`[${periodStr}] 일정이 생성되었습니다. 이제 엑셀 파일을 업로드하거나 수동 입력할 수 있습니다.`);
   } catch (err) {
-    console.error('주차 생성 실패:', err);
-    alert('주차를 생성하는 중 오류가 발생했습니다.');
+    console.error('일정 생성 실패:', err);
+    alert('일정을 생성하는 중 오류가 발생했습니다.');
   }
 }
 
-document.getElementById('btn-add-next-week')?.addEventListener('click', async () => {
+document.getElementById('btn-add-next-week').addEventListener('click', async () => {
   if (!canEditPlan) return;
 
-  const sortedKeys = getSortedWeekKeys(dbData?.weeks);
+  const sortedKeys = getSortedWeekKeys(dbData ? dbData.weeks : {});
   let nextMonday;
 
   if (sortedKeys.length > 0) {
@@ -530,25 +518,8 @@ document.getElementById('btn-add-next-week')?.addEventListener('click', async ()
   await createOrNavigateToWeekByMonday(nextMonday);
 });
 
-const customDateInput = document.getElementById('custom-week-date-input');
-document.getElementById('btn-pick-custom-week')?.addEventListener('click', () => {
-  if (!canEditPlan || !customDateInput) return;
-  if (typeof customDateInput.showPicker === 'function') {
-    customDateInput.showPicker();
-  } else {
-    customDateInput.click();
-  }
-});
-
-customDateInput?.addEventListener('change', async (e) => {
-  if (!e.target.value || !canEditPlan) return;
-  const pickedDate = parseLocalDateStr(e.target.value);
-  e.target.value = '';
-  await createOrNavigateToWeekByMonday(pickedDate);
-});
-
 document.getElementById('btn-open-manual-edit').addEventListener('click', () => {
-  if (!canEditPlan || !dbData?.weeks?.[selectedWeekKey]) return;
+  if (!canEditPlan || !dbData || !dbData.weeks || !dbData.weeks[selectedWeekKey]) return;
 
   const lineKey = String(planRenderer.currentLine);
   const dayIdx = planRenderer.currentDayIdx - 1;
@@ -560,7 +531,7 @@ document.getElementById('btn-open-manual-edit').addEventListener('click', () => 
     return;
   }
 
-  const lineLabel = LINE_META[lineKey]?.label || lineKey;
+  const lineLabel = LINE_META[lineKey].label;
   editModalTitle.textContent = `✏️ ${lineLabel} — ${targetDay.dayLabel} 수동 수정`;
   editingItems = JSON.parse(JSON.stringify(targetDay.items || []));
   renderEditModalRows();
@@ -580,7 +551,7 @@ document.getElementById('btn-modal-add-row').addEventListener('click', () => {
 });
 
 editModalTbody.addEventListener('click', (e) => {
-  const delIdx = e.target.dataset?.delIdx;
+  const delIdx = e.target.dataset.delIdx;
   if (delIdx === undefined) return;
   syncModalInputs();
   editingItems.splice(Number(delIdx), 1);
@@ -651,10 +622,10 @@ const installBtn = document.getElementById('install-btn');
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  if (installBtn) installBtn.style.display = 'block';
+  installBtn.style.display = 'block';
 });
 
-installBtn?.addEventListener('click', async () => {
+installBtn.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   deferredPrompt = null;

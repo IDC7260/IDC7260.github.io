@@ -213,11 +213,12 @@ function downloadFallbackPlainExcel(planRenderer, weekObj, yearStr, monthNum) {
   const daysImp = planRenderer.getDaysFromDB('imprinting');
   const baseDays = days1.length ? days1 : (days2.length ? days2 : daysImp);
 
-  const titleText = `${yearStr}년  ${monthNum} 월  ${weekObj.week} 주차 주간 통합생산계획서`;
+  const periodLabel = weekObj.period || `${yearStr}년 ${monthNum}월`;
+  const titleText = `${periodLabel} 주간 통합생산계획서`;
   const aoa = [
     [titleText, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
     new Array(16).fill(null),
-    [null, null, null, null, null, null, null, null, `   ${weekObj.period || ''}`, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, `   ${periodLabel}`, null, null, null, null, null, null, null],
     new Array(16).fill(null)
   ];
 
@@ -261,15 +262,18 @@ function downloadFallbackPlainExcel(planRenderer, weekObj, yearStr, monthNum) {
     }
   });
 
+  const safePeriod = periodLabel.replace(/\s+/g, '_');
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `${monthNum}월 ${weekObj.week}주`);
-  XLSX.writeFile(wb, `IDC_주간통합생산계획서_${yearStr}년_${monthNum}월_${weekObj.week}주차.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, `${monthNum}월 생산계획`);
+  XLSX.writeFile(wb, `IDC_주간통합생산계획서_${safePeriod}.xlsx`);
 }
 
 export function initExcelSyncHandlers({ getState, setSelectedWeekKey, planRenderer, weekSelectEl }) {
-  // 1) [주간 엑셀 받기]
-  document.getElementById('btn-excel-download')?.addEventListener('click', async () => {
+  const fileInputEl = document.getElementById('excel-file-input');
+
+  // 1) [주간 엑셀 받기] (index.html: #btn-export-excel)
+  document.getElementById('btn-export-excel')?.addEventListener('click', async () => {
     const { dbData, selectedWeekKey } = getState();
     const weekObj = dbData?.weeks?.[selectedWeekKey];
     if (!weekObj) return;
@@ -304,13 +308,14 @@ export function initExcelSyncHandlers({ getState, setSelectedWeekKey, planRender
         return;
       }
 
+      const safePeriod = (weekObj.period || `${yearStr}년_${monthNum}월`).replace(/\s+/g, '_');
       const blob = new Blob([base64ToUint8Array(downloadBase64)], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = tplData.fileName || `IDC_주간통합생산계획서_${yearStr}년_${monthNum}월_${weekObj.week}주차.xlsx`;
+      a.download = tplData.fileName || `IDC_주간통합생산계획서_${safePeriod}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -319,8 +324,18 @@ export function initExcelSyncHandlers({ getState, setSelectedWeekKey, planRender
     }
   });
 
-  // 2) [주간 엑셀 업로드]
-  document.getElementById('excel-upload-input')?.addEventListener('change', async (e) => {
+  // 2) [주간 엑셀 업로드] 버튼 클릭 시 숨겨진 파일 선택창 열기 (index.html: #btn-import-excel)
+  document.getElementById('btn-import-excel')?.addEventListener('click', () => {
+    const { canEditPlan } = getState();
+    if (!canEditPlan) return;
+    if (fileInputEl) {
+      fileInputEl.value = '';
+      fileInputEl.click();
+    }
+  });
+
+  // 3) 엑셀 파일 선택 후 파싱 및 DB 반영 (index.html: #excel-file-input)
+  fileInputEl?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     const { dbData, canEditPlan } = getState();
     let { selectedWeekKey } = getState();
@@ -333,12 +348,13 @@ export function initExcelSyncHandlers({ getState, setSelectedWeekKey, planRender
 
     const weekObj = dbData?.weeks?.[selectedWeekKey];
     if (!weekObj) {
-      alert('선택된 주차 정보를 찾을 수 없습니다. 먼저 주차를 생성해 주세요.');
+      alert('선택된 일정 정보를 찾을 수 없습니다. 먼저 주간 일정을 생성해 주세요.');
       e.target.value = '';
       return;
     }
 
-    if (!confirm(`[${weekObj.week}주차] 전체 라인(1호기 · 2호기 · 임프린팅) 생산계획을 선택한 통합 엑셀 파일로 일괄 업데이트하시겠습니까?\n(업로드한 양식 서식도 함께 보관됩니다)`)) {
+    const periodLabel = weekObj.period || selectedWeekKey;
+    if (!confirm(`[${periodLabel}] 전체 라인(1호기 · 2호기 · 임프린팅) 생산계획을 선택한 통합 엑셀 파일로 일괄 업데이트하시겠습니까?\n(업로드한 양식 서식도 함께 보관됩니다)`)) {
       e.target.value = '';
       return;
     }
@@ -461,7 +477,7 @@ export function initExcelSyncHandlers({ getState, setSelectedWeekKey, planRender
         });
       }
 
-      alert(`총 ${totalImported}건의 생산계획과 원본 양식 서식이 [${weekObj.week}주차]에 반영되었습니다.`);
+      alert(`총 ${totalImported}건의 생산계획과 원본 양식 서식이 [${periodLabel}]에 반영되었습니다.`);
     } catch (err) {
       console.error('통합 엑셀 업로드 실패:', err);
       alert('엑셀 파일을 처리하는 중 오류가 발생했습니다.');
