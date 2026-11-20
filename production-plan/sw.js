@@ -1,12 +1,17 @@
-const STATIC_CACHE = 'production-plan-cache-v1.0.0-beta7.2';
+const STATIC_CACHE = 'production-plan-cache-v1.0.0-beta8.2';
 
 const ASSETS = [
   './',
-  'index.html',
-  'style.css',
-  'app.js',
-  'IDCIcon-192.png',
-  'IDCIcon-512.png',
+  './index.html',
+  './style.css',
+  './manifest.json',
+  './IDCIcon-192.png',
+  './IDCIcon-512.png',
+  './js/app.js',
+  './js/firebase.js',
+  './js/utils.js',
+  './js/plan-slider.js',
+  './js/excel-sync.js'
 ];
 
 self.addEventListener('install', event => {
