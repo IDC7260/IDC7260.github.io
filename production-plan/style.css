@@ -735,3 +735,153 @@ table.plan-table td:nth-child(2) {
     font-size: 0.78rem;
   }
 }
+
+/* =========================================
+   품목별 작업 진행 상태(톱니바퀴) 및 컨트롤 버튼 바
+   ========================================= */
+
+/* 톱니바퀴 회전 애니메이션 */
+@keyframes gearSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 품명 우측 인라인 상태 배지 */
+.status-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+.status-badge-inline.running {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.status-badge-inline.running .gear-icon {
+  display: inline-block;
+  animation: gearSpin 2.2s linear infinite;
+}
+
+.status-badge-inline.paused {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.status-badge-inline.completed {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+/* 품목 하단 작업 컨트롤 바 */
+.item-work-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+/* 좌측 작업 버튼 그룹 */
+.item-work-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.work-btn {
+  padding: 5px 11px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.work-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.work-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.work-btn.start {
+  background: #2563eb;
+  color: #fff;
+}
+
+.work-btn.pause {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.work-btn.resume {
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.work-btn.complete {
+  background: #16a34a;
+  color: #fff;
+}
+
+.work-btn.uncomplete {
+  background: #64748b;
+  color: #fff;
+}
+
+/* 우측 시각 기록 표기 영역 */
+.item-work-logs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.time-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.time-tag.start,
+.time-tag.resume {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.time-tag.pause {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.time-tag.complete {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}

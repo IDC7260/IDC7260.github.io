@@ -193,7 +193,7 @@ function stopPlanDatabaseListener() {
 }
 
 /* =========================================
-3. 좌우 무한 루프 날짜 슬라이더 렌더러
+3. 좌우 무한 루프 날짜 슬라이더 렌더러 (작업 상태 컨트롤 & 회전 톱니바퀴 포함)
    ========================================= */
 class InfinitePlanRenderer {
   constructor(viewportId) {
@@ -221,6 +221,102 @@ class InfinitePlanRenderer {
       }));
     }
     return lineDays;
+  }
+
+  formatNowHHMM() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+async handleWorkAction(dayIdx, itemIdx, action) {
+    if (!isAuthorized || !selectedWeekKey) return;
+
+    const lineKey = String(this.currentLine);
+    const weekObj = dbData?.weeks?.[selectedWeekKey];
+    const lineDays = weekObj?.lines?.[lineKey];
+    const targetDay = lineDays?.[dayIdx];
+    const targetItem = targetDay?.items?.[itemIdx];
+    if (!targetItem) return;
+
+    const prevLogs = Array.isArray(targetItem.timeLogs) ? targetItem.timeLogs : [];
+
+    // [완료취소] 처리
+    if (action === 'uncomplete') {
+      if (!confirm(`[${targetItem.name}] 완료 처리를 취소하고 이전 상태로 되돌리시겠습니까?`)) {
+        return;
+      }
+
+      // 마지막 완료 로그 제거
+      const nextLogs = [...prevLogs];
+      if (nextLogs.length > 0 && nextLogs[nextLogs.length - 1].type === 'complete') {
+        nextLogs.pop();
+      }
+
+      // 남은 마지막 로그 기준으로 직전 상태 복원
+      const lastLog = nextLogs[nextLogs.length - 1];
+      const restoredStatus = !lastLog
+        ? 'idle'
+        : lastLog.type === 'pause'
+        ? 'paused'
+        : 'running';
+
+      try {
+        await authReady;
+        const itemRef = ref(
+          db,
+          `/production-plan/weeks/${selectedWeekKey}/lines/${lineKey}/${dayIdx}/items/${itemIdx}`
+        );
+        await set(itemRef, {
+          ...targetItem,
+          workStatus: restoredStatus,
+          timeLogs: nextLogs
+        });
+      } catch (err) {
+        console.error('완료 취소 실패:', err);
+        alert('완료 취소 처리 중 오류가 발생했습니다.');
+      }
+      return;
+    }
+
+    const actionLabels = {
+      start: '시작',
+      pause: '불량중단',
+      resume: '재시작',
+      complete: '완료'
+    };
+
+    if (action === 'complete' && !confirm(`[${targetItem.name}] 작업을 완료 처리하시겠습니까?`)) {
+      return;
+    }
+
+    const timeStr = this.formatNowHHMM();
+    const nextStatus =
+      action === 'start' || action === 'resume' ? 'running'
+      : action === 'pause' ? 'paused'
+      : 'completed';
+
+    const nextLogs = [
+      ...prevLogs,
+      { type: action, label: actionLabels[action], time: timeStr }
+    ];
+
+    try {
+      await authReady;
+      const itemRef = ref(
+        db,
+        `/production-plan/weeks/${selectedWeekKey}/lines/${lineKey}/${dayIdx}/items/${itemIdx}`
+      );
+      await set(itemRef, {
+        ...targetItem,
+        workStatus: nextStatus,
+        timeLogs: nextLogs
+      });
+    } catch (err) {
+      console.error('작업 상태 업데이트 실패:', err);
+      alert('작업 상태를 저장하는 중 오류가 발생했습니다.');
+    }
   }
 
   loadLine(lineKey, keepDayIdx = null) {
@@ -270,7 +366,7 @@ class InfinitePlanRenderer {
     }
   }
 
-  createSlideElement(dayData) {
+  createSlideElement(dayData, dayIdx) {
     const slide = document.createElement('section');
     slide.className = 'day-slide';
     const lineLabel = LINE_META[this.currentLine].label;
@@ -284,25 +380,87 @@ class InfinitePlanRenderer {
       `;
     } else {
       const items = dayData.items || [];
-      const rows = items.length > 0
+      const hasItems = items.length > 0;
+      const rows = hasItems
         ? items
         : [{ seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-', note: '' }];
 
-      const rowsHtml = rows.map((r) => `
-        <tr>
-          <td><strong>${escapeHtml(r.seq ?? '-')}</strong></td>
-          <td style="text-align:left; padding-left:16px;">
-            <strong style="white-space: pre-line;">${escapeHtml(r.name || '-')}</strong>
-            ${r.note ? `<div style="font-size:0.8em; color:#64748b; margin-top:4px; font-weight:500; white-space: pre-line;">※ ${escapeHtml(r.note)}</div>` : ''}
-          </td>
-          <td><strong>${escapeHtml(r.qty || '-')}</strong></td>
-          <td>
-            <span class="process-badge ${!r.process || r.process === '-' ? 'process-empty' : ''}">
-              ${escapeHtml(r.process || '-')}
-            </span>
-          </td>
-        </tr>
-      `).join('');
+      const rowsHtml = rows.map((r, itemIdx) => {
+        const status = r.workStatus || 'idle'; // 'idle' | 'running' | 'paused' | 'completed'
+        const logs = Array.isArray(r.timeLogs) ? r.timeLogs : [];
+
+        const isStartDisabled = status !== 'idle';
+        const isPauseOrResumeDisabled = status === 'idle' || status === 'completed';
+
+        const midAction = status === 'paused' ? 'resume' : 'pause';
+        const midLabel = status === 'paused' ? '재시작' : '불량중단';
+
+        const isCompleted = status === 'completed';
+        const endAction = isCompleted ? 'uncomplete' : 'complete';
+        const endLabel = isCompleted ? '완료취소' : '완료';
+        const isEndDisabled = status === 'idle';
+
+        const statusBadgeHtml =
+          status === 'running'
+            ? `<span class="status-badge-inline running"><span class="gear-icon">⚙️</span>진행중</span>`
+            : status === 'paused'
+            ? `<span class="status-badge-inline paused">⏸ 불량중단</span>`
+            : status === 'completed'
+            ? `<span class="status-badge-inline completed">✔ 완료</span>`
+            : '';
+
+        const logsHtml = logs.map(log => `
+          <span class="time-tag ${escapeHtml(log.type)}">
+            [${escapeHtml(log.label)}] ${escapeHtml(log.time)}
+          </span>
+        `).join('');
+
+        const workBarHtml = hasItems ? `
+          <div class="item-work-bar">
+            <div class="item-work-btns">
+              <button type="button"
+                class="work-btn start"
+                data-day-idx="${dayIdx}"
+                data-item-idx="${itemIdx}"
+                data-action="start"
+                ${isStartDisabled ? 'disabled' : ''}>시작</button>
+              <button type="button"
+                class="work-btn ${midAction}"
+                data-day-idx="${dayIdx}"
+                data-item-idx="${itemIdx}"
+                data-action="${midAction}"
+                ${isPauseOrResumeDisabled ? 'disabled' : ''}>${midLabel}</button>
+              <button type="button"
+                class="work-btn ${endAction}"
+                data-day-idx="${dayIdx}"
+                data-item-idx="${itemIdx}"
+                data-action="${endAction}"
+                ${isEndDisabled ? 'disabled' : ''}>${endLabel}</button>
+            </div>
+            <div class="item-work-logs">${logsHtml}</div>
+          </div>
+        ` : '';
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(r.seq ?? '-')}</strong></td>
+            <td style="text-align:left; padding-left:16px;">
+              <div>
+                <strong style="white-space: pre-line;">${escapeHtml(r.name || '-')}</strong>
+                ${statusBadgeHtml}
+              </div>
+              ${r.note ? `<div style="font-size:0.8em; color:#64748b; margin-top:4px; font-weight:500; white-space: pre-line;">※ ${escapeHtml(r.note)}</div>` : ''}
+              ${workBarHtml}
+            </td>
+            <td><strong>${escapeHtml(r.qty || '-')}</strong></td>
+            <td>
+              <span class="process-badge ${!r.process || r.process === '-' ? 'process-empty' : ''}">
+                ${escapeHtml(r.process || '-')}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
 
       contentHtml = `
         <table class="plan-table">
@@ -339,11 +497,11 @@ class InfinitePlanRenderer {
 
     if (this.days.length === 0) return;
 
-    const firstClone = this.createSlideElement(this.days[0]);
-    const lastClone = this.createSlideElement(this.days[this.days.length - 1]);
+    const firstClone = this.createSlideElement(this.days[0], 0);
+    const lastClone = this.createSlideElement(this.days[this.days.length - 1], this.days.length - 1);
 
     slider.append(lastClone);
-    this.days.forEach(day => slider.append(this.createSlideElement(day)));
+    this.days.forEach((day, idx) => slider.append(this.createSlideElement(day, idx)));
     slider.append(firstClone);
 
     this.viewport.append(slider);
@@ -394,6 +552,16 @@ class InfinitePlanRenderer {
   }
 
   initEvents() {
+    // 작업 컨트롤 버튼(시작 / 불량중단 / 재시작 / 완료) 클릭 이벤트
+    this.addListener(this.viewport, 'click', (e) => {
+      const btn = e.target.closest('.work-btn');
+      if (!btn || btn.disabled) return;
+      const dayIdx = Number(btn.dataset.dayIdx);
+      const itemIdx = Number(btn.dataset.itemIdx);
+      const action = btn.dataset.action;
+      this.handleWorkAction(dayIdx, itemIdx, action);
+    });
+
     this.addListener(this.viewport, 'wheel', (e) => {
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) > 20) {
@@ -405,6 +573,7 @@ class InfinitePlanRenderer {
     let startX = 0;
 
     this.addListener(this.viewport, 'mousedown', (e) => {
+      if (e.target.closest('.work-btn')) return;
       isMouseDown = true;
       startX = e.clientX;
     }, { passive: true });
@@ -420,13 +589,14 @@ class InfinitePlanRenderer {
 
     let touchStartX = 0;
     this.addListener(this.viewport, 'touchstart', (e) => {
-      if (e.touches.length > 1) return;
+      if (e.touches.length > 1 || e.target.closest('.work-btn')) return;
       touchStartX = e.touches[0].clientX;
     }, { passive: true });
 
     this.addListener(this.viewport, 'touchend', (e) => {
-      if (e.touches.length > 0) return;
+      if (e.touches.length > 0 || !touchStartX) return;
       const dx = touchStartX - e.changedTouches[0].clientX;
+      touchStartX = 0;
       if (Math.abs(dx) > 40) {
         this.step(dx > 0 ? 1 : -1);
       }
@@ -781,9 +951,8 @@ function syncModalInputs() {
 }
 
 // =========================================
-// [권한자 전용] 다음 주차 자동 생성 기능 (YYYY-MM-DD 키 저장)
+// [권한자 전용] 주차 생성 (다음 주차 자동 생성 + 특정 주 날짜 지정 생성)
 // =========================================
-// 해당 주의 마지막 날(일요일) 기준으로 소속 월과 주차 산출
 function getMonthWeekNumberByEndDate(mondayDate) {
   const sunday = new Date(mondayDate);
   sunday.setDate(mondayDate.getDate() + 6);
@@ -796,12 +965,10 @@ function getMonthWeekNumberByEndDate(mondayDate) {
   return { year, month, weekOfMonth };
 }
 
-// 공통 주차 생성 및 이동 함수
 async function createOrNavigateToWeekByMonday(mondayDate) {
   const monday = getMondayOfDate(mondayDate);
   const mondayKey = formatDateYMD(monday);
 
-  // 이미 존재하는 주차면 새로 만들지 않고 해당 주차로 이동
   if (dbData?.weeks?.[mondayKey]) {
     selectedWeekKey = mondayKey;
     renderWeekOptions(dbData.weeks);
@@ -869,7 +1036,6 @@ async function createOrNavigateToWeekByMonday(mondayDate) {
   }
 }
 
-// 1) [➕ 다음 주차 생성]: 등록된 가장 마지막 주차의 다음 주 월요일 자동 계산
 document.getElementById('btn-add-next-week')?.addEventListener('click', async () => {
   if (!canEditPlan) return;
 
@@ -887,7 +1053,6 @@ document.getElementById('btn-add-next-week')?.addEventListener('click', async ()
   await createOrNavigateToWeekByMonday(nextMonday);
 });
 
-// 2) [📅 특정 주 생성]: 달력에서 날짜 선택 시 해당 주(월~일) 생성 또는 이동
 const customDateInput = document.getElementById('custom-week-date-input');
 document.getElementById('btn-pick-custom-week')?.addEventListener('click', () => {
   if (!canEditPlan || !customDateInput) return;
@@ -1158,7 +1323,7 @@ async function syncLatestTemplateFile(weekKey, overrideLineKey = null, overrideD
   return { latestBase64, fileName: tplData.fileName };
 }
 
-// 수동 수정 내용 Firebase DB 저장 + 원본 템플릿 완성본 즉시 덮어쓰기
+// 수동 수정 내용 Firebase DB 저장 + 원본 템플릿 완성본 즉시 덮어쓰기 (기존 작업 시간 기록 보존)
 document.getElementById('btn-modal-save').addEventListener('click', async () => {
   if (!canEditPlan || !selectedWeekKey) return;
   syncModalInputs();
@@ -1166,6 +1331,8 @@ document.getElementById('btn-modal-save').addEventListener('click', async () => 
   const cleanedItems = editingItems
     .filter(item => item.name || item.qty || item.process || item.note)
     .map((item, idx) => ({
+      ...(item.workStatus ? { workStatus: item.workStatus } : {}),
+      ...(Array.isArray(item.timeLogs) ? { timeLogs: item.timeLogs } : {}),
       seq: item.seq || String(idx + 1),
       name: item.name || '',
       qty: item.qty || '',
