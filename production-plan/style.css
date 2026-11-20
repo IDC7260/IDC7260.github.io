@@ -169,6 +169,16 @@ html, body {
   background-color: #1d4ed8;
 }
 
+.today-btn {
+  background-color: #0284c7;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.today-btn:hover {
+  background-color: #0369a1;
+}
+
 #current-header-title {
   font-size: 1.05rem;
   font-weight: 700;
@@ -784,6 +794,12 @@ table.plan-table td:nth-child(3) {
   .line-select-box {
     padding: 5px 10px;
     font-size: 14px;
+    min-height: 34px;
+  }
+
+  .today-btn {
+    padding: 5px 10px;
+    font-size: 13.5px;
     min-height: 34px;
   }
 

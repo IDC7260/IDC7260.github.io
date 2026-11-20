@@ -386,6 +386,22 @@ document.getElementById('btn-line-1').addEventListener('click', () => openLine(1
 document.getElementById('btn-line-2').addEventListener('click', () => openLine(2));
 document.getElementById('btn-prev-day').addEventListener('click', () => planRenderer.step(-1));
 document.getElementById('btn-next-day').addEventListener('click', () => planRenderer.step(1));
+document.getElementById('btn-today').addEventListener('click', () => {
+  if (!dbData || !dbData.weeks) return;
+
+  const today = new Date();
+  const currentWeekKey = findCurrentWeekKey(dbData.weeks);
+  if (!currentWeekKey) return;
+
+  selectedWeekKey = currentWeekKey;
+  weekSelectEl.value = currentWeekKey;
+
+  // 월요일(1) ~ 일요일(7) 기준 인덱스 계산 (JS getDay(): 일=0, 월=1 ... 토=6)
+  const jsDay = today.getDay();
+  const todayIdx = jsDay === 0 ? 7 : jsDay;
+
+  planRenderer.loadLine(planRenderer.currentLine, todayIdx);
+});
 
 lineSelectEl.addEventListener('change', (e) => {
   openLine(e.target.value, planRenderer.currentDayIdx);
