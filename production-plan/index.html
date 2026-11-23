@@ -53,7 +53,6 @@
       <!-- 로그인 폼 -->
       <form id="login-form">
         <input type="text" id="login-id" placeholder="사번 (예: 1001)" required autocomplete="username" />
-        <input type="password" id="login-password" placeholder="비밀번호" required autocomplete="current-password" />
         <p id="login-error" class="login-error"></p>
         <button type="submit" id="btn-login" class="login-submit-btn">로그인 후 계획서 보기</button>
       </form>
@@ -61,14 +60,7 @@
       <!-- 계정 신청(가입) 폼 -->
       <form id="signup-form" style="display: none;">
         <input type="text" id="signup-name" placeholder="성명 / 직책 (예: 홍길동 반장)" required />
-        <select id="signup-dept" class="login-select">
-          <option value="임프린팅">소속: 임프린팅</option>
-          <option value="1호기">소속: 1호기</option>
-          <option value="2호기">소속: 2호기</option>
-          <option value="공통/관리">소속: 공통/관리</option>
-        </select>
         <input type="text" id="signup-id" placeholder="사용할 사번 (예: 1001)" required />
-        <input type="password" id="signup-password" placeholder="사용할 비밀번호 (예: 1234)" required />
         <p id="signup-error" class="login-error"></p>
         <button type="submit" id="btn-signup" class="login-submit-btn">가입 신청하기</button>
       </form>

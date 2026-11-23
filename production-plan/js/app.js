@@ -237,7 +237,7 @@ async function watchEmployeeSession(empId) {
       canEditPlan = false;
       currentEmpInfo = null;
       isPendingApproval = true;
-      pendingUserDisplay = `${emp.name} (${emp.dept})`;
+      pendingUserDisplay = emp.dept ? `${emp.name} (${emp.dept})` : emp.name;
       updatePlannerToolbarVisibility();
       stopPlanDatabaseListener();
 
@@ -284,7 +284,6 @@ tabSignup.addEventListener('click', () => showAuthTab('signup'));
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const empId = sanitizeId(document.getElementById('login-id').value);
-  const inputPw = document.getElementById('login-password').value.trim();
   const loginError = document.getElementById('login-error');
   const btnLogin = document.getElementById('btn-login');
 
@@ -296,8 +295,8 @@ loginForm.addEventListener('submit', async (e) => {
     const snap = await get(ref(db, `employees/${empId}`));
     const emp = snap.val();
 
-    if (!emp || String(emp.password) !== inputPw) {
-      loginError.textContent = '사번 또는 비밀번호가 올바르지 않습니다.';
+    if (!emp) {
+      loginError.textContent = '등록되지 않은 사번입니다.';
       return;
     }
 
@@ -314,9 +313,7 @@ loginForm.addEventListener('submit', async (e) => {
 signupForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('signup-name').value.trim();
-  const dept = document.getElementById('signup-dept').value;
   const empId = sanitizeId(document.getElementById('signup-id').value);
-  const password = document.getElementById('signup-password').value.trim();
   const signupError = document.getElementById('signup-error');
   const btnSignup = document.getElementById('btn-signup');
 
@@ -333,8 +330,6 @@ signupForm.addEventListener('submit', async (e) => {
 
     await set(ref(db, `employees/${empId}`), {
       name,
-      dept,
-      password,
       active: false,
       canEdit: false,
       createdAt: new Date().toISOString().slice(0, 10)
