@@ -100,6 +100,7 @@
 
       <div class="header-right">
         <select id="week-select" class="nav-btn"></select>
+        <button type="button" id="btn-weekly-overview" class="nav-btn overview-btn">📋 전체보기</button>
         <button type="button" id="btn-prev-day" class="nav-btn">◀ 이전일</button>
         <button type="button" id="btn-next-day" class="nav-btn">다음일 ▶</button>
         <button type="button" id="btn-logout-plan" class="nav-btn logout-nav-btn">로그아웃</button>
@@ -150,6 +151,23 @@
           <button type="button" class="tool-btn" id="btn-modal-cancel">취소</button>
           <button type="button" class="tool-btn primary" id="btn-modal-save">💾 저장하기</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 주간 생산계획서 전체보기 모달 -->
+  <div id="weekly-overview-modal" class="edit-modal-backdrop">
+    <div class="edit-modal-card overview-modal-card">
+      <div class="edit-modal-header">
+        <h3 id="overview-modal-title">📋 주간 통합생산계획서 전체보기</h3>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button type="button" id="btn-toggle-overview-rotate" class="tool-btn">🔄 가로로 보기</button>
+          <button type="button" id="btn-close-overview-modal" class="edit-modal-close">✕</button>
+        </div>
+      </div>
+      <div class="edit-modal-body overview-modal-body" id="overview-modal-body"></div>
+      <div class="edit-modal-footer" style="justify-content: flex-end;">
+        <button type="button" class="tool-btn primary" id="btn-overview-close-bottom">닫기</button>
       </div>
     </div>
   </div>

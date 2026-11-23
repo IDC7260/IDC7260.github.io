@@ -630,7 +630,125 @@ initExcelSyncHandlers({
 });
 
 /* =========================================
-5. PWA 설치 프롬프트 처리
+5. 주간 통합생산계획서 전체보기 모달
+   ========================================= */
+const overviewModal = document.getElementById('weekly-overview-modal');
+const overviewModalTitle = document.getElementById('overview-modal-title');
+const overviewModalBody = document.getElementById('overview-modal-body');
+
+function renderWeeklyOverviewTable() {
+  const weekObj = dbData?.weeks?.[selectedWeekKey];
+  if (!weekObj) {
+    alert('표시할 주간 일정 데이터가 없습니다.');
+    return;
+  }
+
+  const lineConfigs = [
+    { key: '1', label: '1호기' },
+    { key: '2', label: '2호기' },
+    { key: 'imprinting', label: '임프린팅' }
+  ];
+
+  const days1 = planRenderer.getDaysFromDB('1');
+  const days2 = planRenderer.getDaysFromDB('2');
+  const daysImp = planRenderer.getDaysFromDB('imprinting');
+  const baseDays = days1.length ? days1 : (days2.length ? days2 : daysImp);
+
+  overviewModalTitle.textContent = `📋 ${weekObj.period || selectedWeekKey} 주간 통합생산계획서`;
+
+  // 헤더 1행: 라인 + 7일 (날짜 / 공정)
+  let headerHtml = `<tr><th class="col-line">라인</th>`;
+  for (let d = 0; d < 7; d++) {
+    const dayInfo = baseDays[d];
+    let colLabel = dayInfo?.dayLabel || `${d + 1}일차`;
+    if (dayInfo?.date && /^\d{4}-\d{2}-\d{2}$/.test(dayInfo.date)) {
+      const mm = Number(dayInfo.date.slice(5, 7));
+      const dd = Number(dayInfo.date.slice(8, 10));
+      const shortDay = (dayInfo.dayLabel || '').replace(/요일/, '').slice(-2).replace(/[()]/g, '').trim();
+      colLabel = `${mm}/${dd}${shortDay ? ` (${shortDay})` : ''}`;
+    }
+    headerHtml += `<th>${escapeHtml(colLabel)}</th><th>공정</th>`;
+  }
+  headerHtml += `</tr>`;
+
+  // 본문: 엑셀 양식 순서(1호기 -> 2호기 -> 임프린팅)로 행 생성
+  let bodyHtml = '';
+  lineConfigs.forEach((cfg) => {
+    const lineDays = planRenderer.getDaysFromDB(cfg.key);
+    const maxRows = Math.max(
+      1,
+      ...Array.from({ length: 7 }, (_, d) => (lineDays[d]?.items || []).length)
+    );
+
+    for (let r = 0; r < maxRows; r++) {
+      const isLastRow = r === maxRows - 1;
+      bodyHtml += `<tr class="${isLastRow ? 'line-group-end' : ''}">`;
+
+      if (r === 0) {
+        bodyHtml += `<td class="col-line" rowspan="${maxRows}">${escapeHtml(cfg.label)}</td>`;
+      }
+
+      for (let d = 0; d < 7; d++) {
+        const item = lineDays[d]?.items?.[r];
+        if (item && (item.name || item.qty || item.note)) {
+          const seqPrefix = item.seq && item.seq !== '-' ? `${item.seq}. ` : `${r + 1}. `;
+          const qtySuffix = item.qty && item.qty !== '-' ? ` ${item.qty}` : '';
+          const statusTag =
+            item.workStatus === 'running' ? `<span class="ov-status-dot running">진행중</span>`
+            : item.workStatus === 'paused' ? `<span class="ov-status-dot paused">중단</span>`
+            : item.workStatus === 'completed' ? `<span class="ov-status-dot completed">완료</span>`
+            : '';
+
+          bodyHtml += `
+            <td class="col-plan">
+              <div class="ov-item-title">${escapeHtml(`${seqPrefix}${item.name || ''}${qtySuffix}`)}${statusTag}</div>
+              ${item.note ? `<div class="ov-item-note">※ ${escapeHtml(item.note)}</div>` : ''}
+            </td>
+            <td class="col-proc">${escapeHtml(item.process && item.process !== '-' ? item.process : '')}</td>
+          `;
+        } else {
+          bodyHtml += `<td class="col-plan"></td><td class="col-proc"></td>`;
+        }
+      }
+
+      bodyHtml += `</tr>`;
+    }
+  });
+
+  overviewModalBody.innerHTML = `
+    <table class="overview-table">
+      <thead>${headerHtml}</thead>
+      <tbody>${bodyHtml}</tbody>
+    </table>
+  `;
+  overviewModal.style.display = 'flex';
+}
+
+const overviewModalCard = overviewModal?.querySelector('.overview-modal-card');
+const btnToggleOverviewRotate = document.getElementById('btn-toggle-overview-rotate');
+
+function closeOverviewModal() {
+  overviewModal.style.display = 'none';
+  overviewModalBody.innerHTML = '';
+  overviewModalCard?.classList.remove('force-landscape');
+  if (btnToggleOverviewRotate) btnToggleOverviewRotate.textContent = '🔄 가로로 보기';
+}
+
+btnToggleOverviewRotate?.addEventListener('click', () => {
+  if (!overviewModalCard) return;
+  const isRotated = overviewModalCard.classList.toggle('force-landscape');
+  btnToggleOverviewRotate.textContent = isRotated ? '📱 세로로 복귀' : '🔄 가로로 보기';
+});
+
+document.getElementById('btn-weekly-overview')?.addEventListener('click', renderWeeklyOverviewTable);
+document.getElementById('btn-close-overview-modal')?.addEventListener('click', closeOverviewModal);
+document.getElementById('btn-overview-close-bottom')?.addEventListener('click', closeOverviewModal);
+overviewModal?.addEventListener('click', (e) => {
+  if (e.target === overviewModal) closeOverviewModal();
+});
+
+/* =========================================
+6. PWA 설치 프롬프트 처리
    ========================================= */
 let deferredPrompt;
 const installBtn = document.getElementById('install-btn');
