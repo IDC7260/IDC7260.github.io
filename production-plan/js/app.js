@@ -20,8 +20,9 @@ import { syncLatestTemplateFile, initExcelSyncHandlers } from './excel-sync.js';
 if ('serviceWorker' in navigator) {
   let swRegistration;
 
-  navigator.serviceWorker.register('./sw.js').then(reg => {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
     swRegistration = reg;
+    reg.update();
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -60,6 +61,7 @@ const planScreen = document.getElementById('plan-screen');
 const lineSelectEl = document.getElementById('line-select');
 const weekSelectEl = document.getElementById('week-select');
 const plannerToolbar = document.getElementById('planner-toolbar');
+const adminPushBtn = document.getElementById('btn-enable-admin-push');
 
 const getAppState = () => ({ dbData, selectedWeekKey, isAuthorized, canEditPlan });
 const planRenderer = new InfinitePlanRenderer('plan-viewport', getAppState);
@@ -132,7 +134,128 @@ function stopPlanDatabaseListener() {
 }
 
 /* =========================================
-3. 사원 로그인 / 가입 신청 / 권한 감시 컨트롤러
+3. 관리자 푸시 알림 ON / OFF 토글 및 상태 동기화
+   ========================================= */
+function renderAdminPushBtnUI(isOn) {
+  if (!adminPushBtn) return;
+  if (isOn) {
+    adminPushBtn.textContent = '🔔 알림 ON';
+    adminPushBtn.classList.add('push-on');
+    adminPushBtn.classList.remove('push-off');
+  } else {
+    adminPushBtn.textContent = '🔕 알림 OFF';
+    adminPushBtn.classList.add('push-off');
+    adminPushBtn.classList.remove('push-on');
+  }
+}
+
+function initAdminPushToggle(empId, empName) {
+  if (!adminPushBtn) return;
+  if (!('Notification' in window)) {
+    adminPushBtn.style.display = 'none';
+    return;
+  }
+
+  adminPushBtn.style.display = 'inline-flex';
+  const localPrefKey = `idc_admin_push_enabled_${empId}`;
+
+  // 1. 초기 상태 확인 및 UI 동기화
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async function (OneSignal) {
+    try {
+      const hasBrowserPerm = Notification.permission === 'granted';
+      const isOptedIn = OneSignal.User?.PushSubscription?.optedIn ?? false;
+      const savedPref = localStorage.getItem(localPrefKey) !== 'false';
+      const initialOn = hasBrowserPerm && isOptedIn && savedPref;
+
+      renderAdminPushBtnUI(initialOn);
+
+      if (initialOn) {
+        OneSignal.User.addTags({
+          role: 'admin',
+          empId: String(empId),
+          empName: String(empName || '')
+        });
+      }
+    } catch (err) {
+      console.warn('OneSignal 초기 상태 동기화 보류:', err?.message || err);
+    }
+  });
+
+  // 2. 버튼 클릭 시 ON <-> OFF 전환
+  adminPushBtn.onclick = () => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function (OneSignal) {
+      const currentlyOn = adminPushBtn.classList.contains('push-on');
+
+      try {
+        adminPushBtn.disabled = true;
+
+        if (currentlyOn) {
+          // [ON -> OFF] 알림 끄기
+          if (!confirm('이 기기에서 작업 완료 푸시 알림을 끄시겠습니까?')) return;
+
+          OneSignal.User.removeTag('role');
+          if (OneSignal.User?.PushSubscription?.optOut) {
+            await OneSignal.User.PushSubscription.optOut();
+          }
+          localStorage.setItem(localPrefKey, 'false');
+          renderAdminPushBtnUI(false);
+          alert('🔕 관리자 푸시 알림이 꺼졌습니다.');
+        } else {
+          // [OFF -> ON] 알림 켜기
+          if (Notification.permission === 'denied') {
+            alert('브라우저 알림 권한이 차단되어 있습니다.\n주소창 왼쪽 자물쇠(또는 설정) 아이콘에서 알림을 [허용]으로 변경해 주세요.');
+            return;
+          }
+
+          if (Notification.permission === 'default') {
+            await OneSignal.Notifications.requestPermission();
+          }
+
+          if (Notification.permission !== 'granted') {
+            renderAdminPushBtnUI(false);
+            return;
+          }
+
+          if (OneSignal.User?.PushSubscription?.optIn) {
+            await OneSignal.User.PushSubscription.optIn();
+          }
+
+          OneSignal.User.addTags({
+            role: 'admin',
+            empId: String(empId),
+            empName: String(empName || '')
+          });
+
+          localStorage.setItem(localPrefKey, 'true');
+          renderAdminPushBtnUI(true);
+          alert('🔔 관리자 푸시 알림이 켜졌습니다.\n작업 완료 시 이 기기로 알림이 전송됩니다.');
+        }
+      } catch (err) {
+        console.warn('OneSignal 알림 ON/OFF 전환 실패:', err?.message || err);
+        alert('알림 설정 변경 중 오류가 발생했습니다.');
+      } finally {
+        adminPushBtn.disabled = false;
+      }
+    });
+  };
+}
+
+function clearAdminOneSignalTag() {
+  renderAdminPushBtnUI(false);
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(function (OneSignal) {
+    try {
+      OneSignal.User.removeTag('role');
+    } catch (err) {
+      console.warn('OneSignal 태그 해제 실패:', err);
+    }
+  });
+}
+
+/* =========================================
+4. 사원 로그인 / 가입 신청 / 권한 감시 컨트롤러
    ========================================= */
 const tabLogin = document.getElementById('tab-login');
 const tabSignup = document.getElementById('tab-signup');
@@ -227,6 +350,10 @@ async function watchEmployeeSession(empId) {
       updatePlannerToolbarVisibility();
       startPlanDatabaseListener();
 
+      if (canEditPlan) {
+        initAdminPushToggle(empId, emp.name);
+      }
+
       if (pendingLine !== null) {
         const target = pendingLine;
         pendingLine = null;
@@ -253,6 +380,9 @@ async function watchEmployeeSession(empId) {
 
 function logoutEmployee(askConfirm = true) {
   if (askConfirm && !confirm('로그아웃 하시겠습니까?')) return;
+  if (canEditPlan) {
+    clearAdminOneSignalTag();
+  }
   localStorage.removeItem(STORAGE_EMP_KEY);
   pendingLine = null;
   isAuthorized = false;
@@ -353,7 +483,10 @@ document.getElementById('btn-login-cancel').addEventListener('click', () => {
   selectScreen.style.display = 'flex';
 });
 
-document.getElementById('btn-logout-plan').addEventListener('click', () => logoutEmployee(true));
+document.getElementById('btn-logout-plan').addEventListener('click', () => {
+  clearAdminOneSignalTag();
+  logoutEmployee(true);
+});
 
 function openLine(lineKey, keepDayIdx = null) {
   if (!isAuthorized) {
@@ -408,7 +541,7 @@ weekSelectEl.addEventListener('change', (e) => {
 });
 
 /* =========================================
-4. 권한자 전용: 주간 계획 생성 & 수동 수정 모달
+5. 권한자 전용: 주간 계획 생성 & 수동 수정 모달
    ========================================= */
 const editModal = document.getElementById('plan-edit-modal');
 const editModalTitle = document.getElementById('edit-modal-title');
@@ -624,7 +757,7 @@ initExcelSyncHandlers({
 });
 
 /* =========================================
-5. 주간 통합생산계획서 전체보기 모달
+6. 주간 통합생산계획서 전체보기 모달
    ========================================= */
 const overviewModal = document.getElementById('weekly-overview-modal');
 const overviewModalTitle = document.getElementById('overview-modal-title');
@@ -741,7 +874,7 @@ overviewModal?.addEventListener('click', (e) => {
 });
 
 /* =========================================
-6. PWA 설치 프롬프트 처리
+7. PWA 설치 프롬프트 처리
    ========================================= */
 let deferredPrompt;
 const installBtn = document.getElementById('install-btn');

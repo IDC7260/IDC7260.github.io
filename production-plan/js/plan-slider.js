@@ -1,6 +1,32 @@
 import { db, authReady, ref, set } from './firebase.js';
 import { LINE_META, escapeHtml } from './utils.js';
 
+const PUSH_WORKER_URL = 'https://plan-push-proxy.idc7260-fa1.workers.dev/';
+const APP_TARGET_URL = 'https://idc7260.github.io/production-plan/';
+
+async function sendWorkCompletedPush({ lineLabel, dayLabel, itemName, itemQty, timeStr, url = APP_TARGET_URL }) {
+  if (!PUSH_WORKER_URL) return;
+
+  try {
+    await fetch(PUSH_WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        lineLabel,
+        dayLabel,
+        itemName,
+        itemQty,
+        timeStr,
+        url
+      })
+    });
+  } catch (err) {
+    console.warn('관리자 푸시 알림 발송 실패:', err);
+  }
+}
+
 export class InfinitePlanRenderer {
   constructor(viewportId, getState) {
     this.viewport = document.getElementById(viewportId);
@@ -120,6 +146,18 @@ export class InfinitePlanRenderer {
         workStatus: nextStatus,
         timeLogs: nextLogs
       });
+
+      if (action === 'complete') {
+        const lineLabel = LINE_META[lineKey]?.label || lineKey;
+        sendWorkCompletedPush({
+          lineLabel,
+          dayLabel: targetDay.dayLabel || '',
+          itemName: targetItem.name || '',
+          itemQty: targetItem.qty || '',
+          timeStr,
+          url: APP_TARGET_URL
+        });
+      }
     } catch (err) {
       console.error('작업 상태 업데이트 실패:', err);
       alert('작업 상태를 저장하는 중 오류가 발생했습니다.');
@@ -171,10 +209,10 @@ export class InfinitePlanRenderer {
     const lineLabel = LINE_META[this.currentLine]?.label || '';
     if (!dayObj) return;
 
-const headerTitleEl = document.getElementById('current-header-title');
-if (headerTitleEl) {
-  headerTitleEl.textContent = dayObj.dayLabel; // 예: "11월 20일 (금요일)"
-}
+    const headerTitleEl = document.getElementById('current-header-title');
+    if (headerTitleEl) {
+      headerTitleEl.textContent = dayObj.dayLabel; // 예: "11월 20일 (금요일)"
+    }
   }
 
   createSlideElement(dayData, dayIdx) {

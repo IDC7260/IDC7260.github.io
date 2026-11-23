@@ -11,6 +11,17 @@
 <!-- 엑셀(.xlsx, .xls) 파싱 및 내보내기용 SheetJS / ExcelJS -->
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "c5034791-eb65-402f-89d0-c212c9e82137",
+      serviceWorkerParam: { scope: "/production-plan/onesignal/" },
+      serviceWorkerPath: "/production-plan/onesignal/OneSignalSDKWorker.js"
+    });
+  });
+</script>
 </head>
 <body>
   <!-- PWA 설치 버튼 -->
@@ -102,6 +113,7 @@
     <!-- 권한자 전용 편집 툴바 -->
     <div id="planner-toolbar" class="planner-toolbar">
       <div class="planner-toolbar-right">
+        <button type="button" id="btn-enable-admin-push" class="tool-btn">🔔 알림 켜기</button>
         <button type="button" id="btn-add-next-week" class="tool-btn">➕ 다음 주차 생성</button>
         <button type="button" id="btn-export-excel" class="tool-btn">📥 주간 엑셀 받기</button>
         <button type="button" id="btn-import-excel" class="tool-btn">📤 주간 엑셀 업로드</button>
