@@ -555,15 +555,6 @@ table.plan-table td:nth-child(3) {
   color: #0f172a;
 }
 
-.edit-modal-close {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-
 .edit-modal-body {
   flex: 1;
   overflow: auto;

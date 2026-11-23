@@ -579,7 +579,6 @@ function closeEditModal() {
   editingItems = [];
 }
 
-document.getElementById('btn-close-edit-modal').addEventListener('click', closeEditModal);
 document.getElementById('btn-modal-cancel').addEventListener('click', closeEditModal);
 
 document.getElementById('btn-modal-save').addEventListener('click', async () => {
@@ -741,7 +740,6 @@ btnToggleOverviewRotate?.addEventListener('click', () => {
 });
 
 document.getElementById('btn-weekly-overview')?.addEventListener('click', renderWeeklyOverviewTable);
-document.getElementById('btn-close-overview-modal')?.addEventListener('click', closeOverviewModal);
 document.getElementById('btn-overview-close-bottom')?.addEventListener('click', closeOverviewModal);
 overviewModal?.addEventListener('click', (e) => {
   if (e.target === overviewModal) closeOverviewModal();
