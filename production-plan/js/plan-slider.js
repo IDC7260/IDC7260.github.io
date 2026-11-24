@@ -44,14 +44,16 @@ export class InfinitePlanRenderer {
   canControlCurrentLine() {
     const { isAuthorized, canEditPlan, currentEmpInfo } = this.getState();
     if (!isAuthorized) return false;
-    if (canEditPlan) return true; // 관리자/계획자는 모든 라인 제어 가능
+    if (canEditPlan) return true;
 
     const lineKey = String(this.currentLine);
     const lineLabel = LINE_META[lineKey]?.label || '';
     const userDept = (currentEmpInfo?.dept || '').replace(/\s+/g, '').toLowerCase();
     if (!userDept) return false;
 
-    if (userDept === '관리' || userDept === '전체' || userDept === 'admin') return true;
+    if (userDept.includes('관리') || userDept.includes('공통') || userDept === '전체' || userDept === 'admin') {
+      return true;
+    }
 
     const targetKey = lineKey.replace(/\s+/g, '').toLowerCase();
     const targetLabel = lineLabel.replace(/\s+/g, '').toLowerCase();
@@ -89,7 +91,7 @@ export class InfinitePlanRenderer {
   }
 
   async handleWorkAction(dayIdx, itemIdx, action) {
-    const { dbData, selectedWeekKey } = this.getState();
+    const { dbData, selectedWeekKey, currentEmpInfo } = this.getState();
     if (!selectedWeekKey || !this.canControlCurrentLine()) return;
 
     const lineKey = String(this.currentLine);
@@ -149,6 +151,7 @@ export class InfinitePlanRenderer {
     }
 
     const timeStr = this.formatNowHHMM();
+    const empName = (currentEmpInfo?.name || '').trim();
     const nextStatus =
       action === 'start' || action === 'resume' ? 'running'
       : action === 'pause' ? 'paused'
@@ -156,7 +159,12 @@ export class InfinitePlanRenderer {
 
     const nextLogs = [
       ...prevLogs,
-      { type: action, label: actionLabels[action], time: timeStr }
+      {
+        type: action,
+        label: actionLabels[action],
+        time: timeStr,
+        ...(empName ? { empName } : {})
+      }
     ];
 
     try {
@@ -287,7 +295,6 @@ export class InfinitePlanRenderer {
           </span>
         `).join('');
 
-        // 본인 소속 공정이거나 관리자일 때만 시작/불량중단/완료 버튼 표시, 그 외에는 시간 로그만 표시
         const workBtnsHtml = canControl ? `
           <div class="item-work-btns">
             <button type="button"
