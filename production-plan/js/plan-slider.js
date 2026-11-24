@@ -30,7 +30,7 @@ async function sendWorkCompletedPush({ lineLabel, dayLabel, itemName, itemQty, t
 export class InfinitePlanRenderer {
   constructor(viewportId, getState) {
     this.viewport = document.getElementById(viewportId);
-    this.getState = getState; // () => ({ dbData, selectedWeekKey, isAuthorized })
+    this.getState = getState; // () => ({ dbData, selectedWeekKey, isAuthorized, canEditPlan, currentEmpInfo })
     this.slider = null;
     this.days = [];
     this.currentLine = 'imprinting';
@@ -38,6 +38,30 @@ export class InfinitePlanRenderer {
     this.isAnimating = false;
     this.ANIM_TIME = 400;
     this.eventListeners = [];
+  }
+
+  // 현재 로그인한 사원이 현재 보고 있는 공정(라인)의 작업 제어 권한이 있는지 판별
+  canControlCurrentLine() {
+    const { isAuthorized, canEditPlan, currentEmpInfo } = this.getState();
+    if (!isAuthorized) return false;
+    if (canEditPlan) return true; // 관리자/계획자는 모든 라인 제어 가능
+
+    const lineKey = String(this.currentLine);
+    const lineLabel = LINE_META[lineKey]?.label || '';
+    const userDept = (currentEmpInfo?.dept || '').replace(/\s+/g, '').toLowerCase();
+    if (!userDept) return false;
+
+    if (userDept === '관리' || userDept === '전체' || userDept === 'admin') return true;
+
+    const targetKey = lineKey.replace(/\s+/g, '').toLowerCase();
+    const targetLabel = lineLabel.replace(/\s+/g, '').toLowerCase();
+
+    return (
+      userDept === targetKey ||
+      userDept === targetLabel ||
+      userDept.includes(targetLabel) ||
+      (targetLabel && targetLabel.includes(userDept))
+    );
   }
 
   getDaysFromDB(lineKey) {
@@ -65,8 +89,8 @@ export class InfinitePlanRenderer {
   }
 
   async handleWorkAction(dayIdx, itemIdx, action) {
-    const { dbData, selectedWeekKey, isAuthorized } = this.getState();
-    if (!isAuthorized || !selectedWeekKey) return;
+    const { dbData, selectedWeekKey } = this.getState();
+    if (!selectedWeekKey || !this.canControlCurrentLine()) return;
 
     const lineKey = String(this.currentLine);
     const weekObj = dbData?.weeks?.[selectedWeekKey];
@@ -206,12 +230,11 @@ export class InfinitePlanRenderer {
   updateHeaderTitle() {
     if (!this.days.length) return;
     const dayObj = this.days[this.currentDayIdx - 1];
-    const lineLabel = LINE_META[this.currentLine]?.label || '';
     if (!dayObj) return;
 
     const headerTitleEl = document.getElementById('current-header-title');
     if (headerTitleEl) {
-      headerTitleEl.textContent = dayObj.dayLabel; // 예: "11월 20일 (금요일)"
+      headerTitleEl.textContent = dayObj.dayLabel;
     }
   }
 
@@ -229,6 +252,7 @@ export class InfinitePlanRenderer {
     } else {
       const items = dayData.items || [];
       const hasItems = items.length > 0;
+      const canControl = this.canControlCurrentLine();
       const rows = hasItems
         ? items
         : [{ seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-', note: '' }];
@@ -263,29 +287,34 @@ export class InfinitePlanRenderer {
           </span>
         `).join('');
 
-        const workBarHtml = hasItems ? `
+        // 본인 소속 공정이거나 관리자일 때만 시작/불량중단/완료 버튼 표시, 그 외에는 시간 로그만 표시
+        const workBtnsHtml = canControl ? `
+          <div class="item-work-btns">
+            <button type="button"
+              class="work-btn start"
+              data-day-idx="${dayIdx}"
+              data-item-idx="${itemIdx}"
+              data-action="start"
+              ${isStartDisabled ? 'disabled' : ''}>시작</button>
+            <button type="button"
+              class="work-btn ${midAction}"
+              data-day-idx="${dayIdx}"
+              data-item-idx="${itemIdx}"
+              data-action="${midAction}"
+              ${isPauseOrResumeDisabled ? 'disabled' : ''}>${midLabel}</button>
+            <button type="button"
+              class="work-btn ${endAction}"
+              data-day-idx="${dayIdx}"
+              data-item-idx="${itemIdx}"
+              data-action="${endAction}"
+              ${isEndDisabled ? 'disabled' : ''}>${endLabel}</button>
+          </div>
+        ` : '';
+
+        const workBarHtml = (hasItems && (canControl || logsHtml)) ? `
           <div class="item-work-bar">
-            <div class="item-work-btns">
-              <button type="button"
-                class="work-btn start"
-                data-day-idx="${dayIdx}"
-                data-item-idx="${itemIdx}"
-                data-action="start"
-                ${isStartDisabled ? 'disabled' : ''}>시작</button>
-              <button type="button"
-                class="work-btn ${midAction}"
-                data-day-idx="${dayIdx}"
-                data-item-idx="${itemIdx}"
-                data-action="${midAction}"
-                ${isPauseOrResumeDisabled ? 'disabled' : ''}>${midLabel}</button>
-              <button type="button"
-                class="work-btn ${endAction}"
-                data-day-idx="${dayIdx}"
-                data-item-idx="${itemIdx}"
-                data-action="${endAction}"
-                ${isEndDisabled ? 'disabled' : ''}>${endLabel}</button>
-            </div>
-            <div class="item-work-logs">${logsHtml}</div>
+            ${workBtnsHtml}
+            ${logsHtml ? `<div class="item-work-logs">${logsHtml}</div>` : ''}
           </div>
         ` : '';
 

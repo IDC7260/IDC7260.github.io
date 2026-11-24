@@ -63,7 +63,7 @@ const weekSelectEl = document.getElementById('week-select');
 const plannerToolbar = document.getElementById('planner-toolbar');
 const adminPushBtn = document.getElementById('btn-enable-admin-push');
 
-const getAppState = () => ({ dbData, selectedWeekKey, isAuthorized, canEditPlan });
+const getAppState = () => ({ dbData, selectedWeekKey, isAuthorized, canEditPlan, currentEmpInfo });
 const planRenderer = new InfinitePlanRenderer('plan-viewport', getAppState);
 
 function renderWeekOptions(weeksObj) {
@@ -159,7 +159,6 @@ function initAdminPushToggle(empId, empName) {
   adminPushBtn.style.display = 'inline-flex';
   const localPrefKey = `idc_admin_push_enabled_${empId}`;
 
-  // 1. 초기 상태 확인 및 UI 동기화
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal) {
     try {
@@ -182,7 +181,6 @@ function initAdminPushToggle(empId, empName) {
     }
   });
 
-  // 2. 버튼 클릭 시 ON <-> OFF 전환
   adminPushBtn.onclick = () => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function (OneSignal) {
@@ -192,7 +190,6 @@ function initAdminPushToggle(empId, empName) {
         adminPushBtn.disabled = true;
 
         if (currentlyOn) {
-          // [ON -> OFF] 알림 끄기
           if (!confirm('이 기기에서 작업 완료 푸시 알림을 끄시겠습니까?')) return;
 
           OneSignal.User.removeTag('role');
@@ -203,7 +200,6 @@ function initAdminPushToggle(empId, empName) {
           renderAdminPushBtnUI(false);
           alert('🔕 관리자 푸시 알림이 꺼졌습니다.');
         } else {
-          // [OFF -> ON] 알림 켜기
           if (Notification.permission === 'denied') {
             alert('브라우저 알림 권한이 차단되어 있습니다.\n주소창 왼쪽 자물쇠(또는 설정) 아이콘에서 알림을 [허용]으로 변경해 주세요.');
             return;
@@ -264,6 +260,33 @@ const signupForm = document.getElementById('signup-form');
 const pendingBox = document.getElementById('pending-box');
 const authTabsWrap = document.querySelector('.auth-tabs');
 
+const signupDeptSelect = document.getElementById('signup-dept');
+const signupNameInput = document.getElementById('signup-name');
+const signupIdInput = document.getElementById('signup-id');
+const btnSignup = document.getElementById('btn-signup');
+
+function updateSignupFieldsLock() {
+  const hasDept = Boolean(signupDeptSelect?.value);
+  if (signupNameInput) {
+    signupNameInput.disabled = !hasDept;
+    signupNameInput.placeholder = hasDept ? '2. 성명 (예: 홍길동)' : '2. 성명 (공정 선택 후 입력)';
+  }
+  if (signupIdInput) {
+    signupIdInput.disabled = !hasDept;
+    signupIdInput.placeholder = hasDept ? '3. 사번 (예: 202401)' : '3. 사번 (공정 선택 후 입력)';
+  }
+  if (btnSignup) {
+    btnSignup.disabled = !hasDept;
+  }
+}
+
+signupDeptSelect?.addEventListener('change', () => {
+  updateSignupFieldsLock();
+  if (signupDeptSelect.value) {
+    signupNameInput?.focus();
+  }
+});
+
 function updatePlannerToolbarVisibility() {
   plannerToolbar.style.display = (isAuthorized && canEditPlan) ? 'flex' : 'none';
 }
@@ -281,6 +304,8 @@ function showAuthTab(mode) {
     tabLogin.classList.remove('active');
     signupForm.style.display = 'flex';
     loginForm.style.display = 'none';
+    signupForm.reset();
+    updateSignupFieldsLock();
   }
 }
 
@@ -352,6 +377,10 @@ async function watchEmployeeSession(empId) {
 
       if (canEditPlan) {
         initAdminPushToggle(empId, emp.name);
+      }
+
+      if (planScreen.style.display === 'flex') {
+        planRenderer.loadLine(planRenderer.currentLine, planRenderer.currentDayIdx);
       }
 
       if (pendingLine !== null) {
@@ -442,12 +471,24 @@ loginForm.addEventListener('submit', async (e) => {
 
 signupForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const name = document.getElementById('signup-name').value.trim();
-  const empId = sanitizeId(document.getElementById('signup-id').value);
+  const dept = signupDeptSelect?.value.trim() || '';
+  const name = signupNameInput.value.trim();
+  const empId = sanitizeId(signupIdInput.value);
   const signupError = document.getElementById('signup-error');
-  const btnSignup = document.getElementById('btn-signup');
 
   signupError.textContent = '';
+
+  if (!dept) {
+    signupError.textContent = '소속 공정을 먼저 선택해 주세요.';
+    signupDeptSelect?.focus();
+    return;
+  }
+
+  if (!name || !empId) {
+    signupError.textContent = '성명과 사번을 모두 입력해 주세요.';
+    return;
+  }
+
   btnSignup.disabled = true;
 
   try {
@@ -455,11 +496,13 @@ signupForm.addEventListener('submit', async (e) => {
     const existingSnap = await get(ref(db, `employees/${empId}`));
     if (existingSnap.exists()) {
       signupError.textContent = '이미 등록되었거나 신청 중인 사번입니다.';
+      btnSignup.disabled = false;
       return;
     }
 
     await set(ref(db, `employees/${empId}`), {
       name,
+      dept,
       active: false,
       canEdit: false,
       createdAt: new Date().toISOString().slice(0, 10)
@@ -467,11 +510,11 @@ signupForm.addEventListener('submit', async (e) => {
 
     localStorage.setItem(STORAGE_EMP_KEY, empId);
     signupForm.reset();
+    updateSignupFieldsLock();
     watchEmployeeSession(empId);
   } catch (err) {
     signupError.textContent = '신청 중 오류가 발생했습니다.';
-  } finally {
-    btnSignup.disabled = false;
+    updateSignupFieldsLock();
   }
 });
 
@@ -484,7 +527,6 @@ document.getElementById('btn-login-cancel').addEventListener('click', () => {
 });
 
 document.getElementById('btn-logout-plan').addEventListener('click', () => {
-  clearAdminOneSignalTag();
   logoutEmployee(true);
 });
 
@@ -524,7 +566,6 @@ document.getElementById('btn-today').addEventListener('click', () => {
   selectedWeekKey = currentWeekKey;
   weekSelectEl.value = currentWeekKey;
 
-  // 월요일(1) ~ 일요일(7) 기준 인덱스 계산 (JS getDay(): 일=0, 월=1 ... 토=6)
   const jsDay = today.getDay();
   const todayIdx = jsDay === 0 ? 7 : jsDay;
 
@@ -783,7 +824,6 @@ function renderWeeklyOverviewTable() {
 
   overviewModalTitle.textContent = `📋 ${weekObj.period || selectedWeekKey} 주간 통합생산계획서`;
 
-  // 헤더 1행: 라인 + 7일 (날짜 / 공정)
   let headerHtml = `<tr><th class="col-line">라인</th>`;
   for (let d = 0; d < 7; d++) {
     const dayInfo = baseDays[d];
@@ -798,7 +838,6 @@ function renderWeeklyOverviewTable() {
   }
   headerHtml += `</tr>`;
 
-  // 본문: 엑셀 양식 순서(1호기 -> 2호기 -> 임프린팅)로 행 생성
   let bodyHtml = '';
   lineConfigs.forEach((cfg) => {
     const lineDays = planRenderer.getDaysFromDB(cfg.key);

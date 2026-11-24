@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'production-plan-cache-v1.0.0-beta14.14';
+const STATIC_CACHE = 'production-plan-cache-v1.0.0-beta15.2';
 
 const ASSETS = [
   './',

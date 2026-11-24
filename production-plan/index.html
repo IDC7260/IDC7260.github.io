@@ -68,12 +68,19 @@
         <button type="submit" id="btn-login" class="login-submit-btn">로그인 후 계획서 보기</button>
       </form>
 
-      <!-- 계정 신청(가입) 폼 -->
+      <!-- 회원가입 신청 폼 -->
       <form id="signup-form" style="display: none;">
-        <input type="text" id="signup-name" placeholder="성명 / 직책 (예: 홍길동 반장)" required />
-        <input type="text" id="signup-id" placeholder="사용할 사번 (예: 1001)" required />
+        <select id="signup-dept" class="login-select" required>
+          <option value="" disabled selected>1. 소속 라인을 먼저 선택하세요</option>
+          <option value="임프린팅">임프린팅</option>
+          <option value="1호기">1호기</option>
+          <option value="2호기">2호기</option>
+          <option value="공통/관리">공통/관리</option>
+        </select>
+        <input type="text" id="signup-name" placeholder="2. 성명 (소속 선택 후 입력)" required disabled />
+        <input type="text" id="signup-id" placeholder="3. 사번 (소속 선택 후 입력)" required disabled />
         <p id="signup-error" class="login-error"></p>
-        <button type="submit" id="btn-signup" class="login-submit-btn">가입 신청하기</button>
+        <button type="submit" id="btn-signup" class="login-submit-btn" disabled>열람 권한 신청</button>
       </form>
 
       <!-- 승인 대기 안내 박스 -->
