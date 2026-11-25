@@ -25,12 +25,64 @@
   .btn-logout { background: #334155; color: #e2e8f0; padding: 8px 14px; font-size: 0.85rem; }
   .container { max-width: 980px; margin: 24px auto; padding: 0 16px; display: grid; gap: 20px; }
   .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+  
   table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.92rem; }
   th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
   th { background: #f8fafc; color: #475569; font-weight: 700; }
-  .status-active { color: #16a34a; background: #dcfce7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
-  .status-blocked { color: #d97706; background: #fef3c7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
-  .btn-sm { padding: 6px 10px; font-size: 0.82rem; margin-right: 4px; }
+  
+  .status-active { color: #16a34a; background: #dcfce7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+  .status-blocked { color: #d97706; background: #fef3c7; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+  .status-admin { color: #2563eb; background: #dbeafe; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+  .btn-sm { padding: 6px 10px; font-size: 0.82rem; margin-right: 4px; margin-bottom: 4px; }
+
+  /* 모바일 반응형 카드형 UI 스타일 */
+  @media (max-width: 768px) {
+    .container { padding: 0 10px; }
+    .card { padding: 16px 12px; }
+    
+    table, thead, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; } /* 테이블 머리글 숨김 */
+    
+    tr.emp-card-row {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    
+    tr.emp-card-row td {
+      border: none;
+      padding: 5px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    /* 각 항목 레이블 표시 */
+    tr.emp-card-row td:nth-child(1)::before { content: "사번(ID)"; font-weight: 700; color: #64748b; font-size: 0.85rem; }
+    tr.emp-card-row td:nth-child(2)::before { content: "사원명"; font-weight: 700; color: #64748b; font-size: 0.85rem; }
+    tr.emp-card-row td:nth-child(3)::before { content: "소속 라인"; font-weight: 700; color: #64748b; font-size: 0.85rem; }
+    tr.emp-card-row td:nth-child(4)::before { content: "비밀번호"; font-weight: 700; color: #64748b; font-size: 0.85rem; }
+    tr.emp-card-row td:nth-child(5)::before { content: "상태 및 권한"; font-weight: 700; color: #64748b; font-size: 0.85rem; }
+    
+    /* 관리 버튼 영역은 하단에 전체 너비로 정렬 */
+    tr.emp-card-row td:nth-child(6) {
+      display: block;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #cbd5e1;
+      text-align: right;
+    }
+    
+    tr.emp-card-row td:nth-child(6) .btn-sm {
+      display: inline-block;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      margin: 3px 2px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -77,6 +129,7 @@
                 <option value="1호기">1호기</option>
                 <option value="2호기">2호기</option>
                 <option value="공통/관리">공통/관리</option>
+                <option value="손님">손님</option>
               </select>
             </div>
             <div>
@@ -93,8 +146,8 @@
 
       <!-- 등록된 사원 목록 카드 -->
       <div class="card">
-        <h3 style="margin:0 0 6px;">📋 사원 목록 (승인 / 비밀번호 변경 / 완전 삭제)</h3>
-        <p style="margin:0 0 12px; font-size:0.85rem; color:#64748b;">사원이 직접 신청한 계정은 최상단에 표시됩니다. '승인하기'를 누르면 즉시 열람 가능합니다.</p>
+        <h3 style="margin:0 0 6px;">📋 사원 목록 (승인 / 권한 / 소속변경 / 비번변경 / 삭제)</h3>
+        <p style="margin:0 0 12px; font-size:0.85rem; color:#64748b;">사원이 직접 신청한 계정은 최상단에 표시됩니다. 각 관리 버튼을 통해 사원 정보를 제어할 수 있습니다.</p>
         <div style="overflow-x:auto;">
           <table>
             <thead>
@@ -103,7 +156,7 @@
                 <th>사원명</th>
                 <th>소속</th>
                 <th>비밀번호</th>
-                <th>상태</th>
+                <th>상태 / 권한</th>
                 <th>관리</th>
               </tr>
             </thead>

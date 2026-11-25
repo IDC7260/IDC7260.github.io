@@ -91,7 +91,8 @@ document.getElementById('create-emp-form').addEventListener('submit', async (e) 
       name,
       dept,
       password,
-      active: false, // 보안 규칙상 신규 생성은 false로 시작 후 즉시 true로 승인
+      active: false,
+      canEdit: false,
       createdAt: new Date().toISOString().slice(0, 10)
     });
     await update(ref(db, `employees/${empId}`), { active: true });
@@ -105,7 +106,7 @@ document.getElementById('create-emp-form').addEventListener('submit', async (e) 
   }
 });
 
-// 사원 목록 실시간 관리 (승인/차단, 비밀번호 변경, 완전 삭제)
+// 사원 목록 실시간 관리 (승인/차단, 권한부여, 소속변경, 비밀번호변경, 완전삭제)
 function watchEmployees() {
   const tbody = document.getElementById('emp-table-body');
   onValue(ref(db, 'employees'), (snapshot) => {
@@ -117,34 +118,47 @@ function watchEmployees() {
 
     const sorted = Object.entries(data).sort((a, b) => Number(a[1].active) - Number(b[1].active));
 
-    tbody.innerHTML = sorted.map(([empId, emp]) => `
-      <tr style="${!emp.active ? 'background:#fffbeb;' : ''}">
-        <td><strong>${empId}</strong></td>
-        <td>${emp.name || '-'}</td>
-        <td>${emp.dept || '-'}</td>
-        <td><code style="background:#f1f5f9; padding:3px 6px; border-radius:4px;">${emp.password || '-'}</code></td>
-        <td>
-          <span class="${emp.active ? 'status-active' : 'status-blocked'}">
-            ${emp.active ? '승인 완료' : '승인 대기'}
-          </span>
-        </td>
-        <td>
-          <button type="button" class="btn-sm btn-toggle" data-id="${empId}" data-active="${emp.active}"
-            style="${!emp.active ? 'background:#2563eb; color:#fff;' : 'background:#e2e8f0; color:#1e293b;'}">
-            ${emp.active ? '차단' : '✅ 승인하기'}
-          </button>
-          <button type="button" class="btn-sm btn-pw" data-id="${empId}" data-name="${emp.name}"
-            style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">
-            비번변경
-          </button>
-          <button type="button" class="btn-sm btn-del" data-id="${empId}" data-name="${emp.name}"
-            style="background:#fee2e2; color:#dc2626;">
-            완전삭제
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = sorted.map(([empId, emp]) => {
+      const canEdit = emp.canEdit === true;
+      return `
+        <tr class="emp-card-row" style="${!emp.active ? 'background:#fffbeb;' : ''}">
+          <td><strong>${empId}</strong></td>
+          <td>${emp.name || '-'}</td>
+          <td>${emp.dept || '-'}</td>
+          <td><code style="background:#f1f5f9; padding:3px 6px; border-radius:4px;">${emp.password || '-'}</code></td>
+          <td>
+            <span class="${emp.active ? 'status-active' : 'status-blocked'}">
+              ${emp.active ? '승인 완료' : '승인 대기'}
+            </span>
+            ${canEdit ? '<span class="status-admin" style="margin-left:4px;">관리자권한</span>' : ''}
+          </td>
+          <td>
+            <button type="button" class="btn-sm btn-toggle" data-id="${empId}" data-active="${emp.active}"
+              style="${!emp.active ? 'background:#2563eb; color:#fff;' : 'background:#e2e8f0; color:#1e293b;'}">
+              ${emp.active ? '차단' : '✅ 승인하기'}
+            </button>
+            <button type="button" class="btn-sm btn-edit-toggle" data-id="${empId}" data-canedit="${canEdit}"
+              style="${canEdit ? 'background:#d97706; color:#fff;' : 'background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;'}">
+              ${canEdit ? '권한회수' : '관리자권한부여'}
+            </button>
+            <button type="button" class="btn-sm btn-dept-change" data-id="${empId}" data-name="${emp.name}" data-dept="${emp.dept || ''}"
+              style="background:#0f766e; color:#fff;">
+              소속변경
+            </button>
+            <button type="button" class="btn-sm btn-pw" data-id="${empId}" data-name="${emp.name}"
+              style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">
+              비번변경
+            </button>
+            <button type="button" class="btn-sm btn-del" data-id="${empId}" data-name="${emp.name}"
+              style="background:#fee2e2; color:#dc2626;">
+              완전삭제
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
+    // 승인/차단 토글 이벤트
     tbody.querySelectorAll('.btn-toggle').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
@@ -153,6 +167,36 @@ function watchEmployees() {
       });
     });
 
+    // 관리자 권한(canEdit) 토글 이벤트
+    tbody.querySelectorAll('.btn-edit-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const canEdit = btn.dataset.canedit === 'true';
+        await update(ref(db, `employees/${id}`), { canEdit: !canEdit });
+      });
+    });
+
+    // 소속 변경 이벤트
+    tbody.querySelectorAll('.btn-dept-change').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        const currentDept = btn.dataset.dept;
+        const newDept = prompt(`'${name} (${id})' 사원의 새 소속을 입력하세요\n(선택 가능: 임프린팅, 1호기, 2호기, 공통/관리, 손님):`, currentDept);
+        if (newDept !== null) {
+          const trimmed = newDept.trim();
+          const validDepts = ['임프린팅', '1호기', '2호기', '공통/관리', '손님'];
+          if (validDepts.includes(trimmed)) {
+            await update(ref(db, `employees/${id}`), { dept: trimmed });
+            alert('소속이 변경되었습니다.');
+          } else {
+            alert('올바른 소속 라인 명칭을 입력해 주세요. (임프린팅, 1호기, 2호기, 공통/관리, 손님 중 선택)');
+          }
+        }
+      });
+    });
+
+    // 비밀번호 변경 이벤트
     tbody.querySelectorAll('.btn-pw').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
@@ -165,6 +209,7 @@ function watchEmployees() {
       });
     });
 
+    // 완전 삭제 이벤트
     tbody.querySelectorAll('.btn-del').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
