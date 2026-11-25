@@ -159,6 +159,18 @@ export class InfinitePlanRenderer {
       return;
     }
 
+    // 불량중단 시 사유 입력 받기
+    let reason = '';
+    if (action === 'pause') {
+      const inputReason = prompt('불량(중단) 사유를 입력해 주세요:');
+      if (inputReason === null) return; // 취소 버튼 누른 경우
+      reason = inputReason.trim();
+      if (!reason) {
+        alert('불량 사유를 입력해야 중단 처리할 수 있습니다.');
+        return;
+      }
+    }
+
     const timeStr = this.formatNowHHMM();
     const empName = (currentEmpInfo?.name || '').trim();
     const nextStatus =
@@ -172,6 +184,7 @@ export class InfinitePlanRenderer {
         type: action,
         label: actionLabels[action],
         time: timeStr,
+        ...(reason ? { reason } : {}),
         ...(empName ? { empName } : {})
       }
     ];
@@ -304,8 +317,8 @@ export class InfinitePlanRenderer {
         const logsHtml = isGuest
           ? ''
           : logs.map(log => `
-              <span class="time-tag ${escapeHtml(log.type)}">
-                [${escapeHtml(log.label)}] ${escapeHtml(log.time)}
+              <span class="time-tag ${escapeHtml(log.type)}" ${log.reason ? `title="중단 사유: ${escapeHtml(log.reason)}"` : ''}>
+                [${escapeHtml(log.label)}] ${escapeHtml(log.time)}${log.reason ? ` <span style="font-weight:400; opacity:0.9;">(${escapeHtml(log.reason)})</span>` : ''}
               </span>
             `).join('');
 
