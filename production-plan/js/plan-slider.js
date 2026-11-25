@@ -40,11 +40,20 @@ export class InfinitePlanRenderer {
     this.eventListeners = [];
   }
 
+  // 현재 로그인한 계정이 '손님' 소속인지 판별
+  isGuestUser() {
+    const { canEditPlan, currentEmpInfo } = this.getState();
+    if (canEditPlan) return false;
+    const userDept = (currentEmpInfo?.dept || '').replace(/\s+/g, '').toLowerCase();
+    return userDept === '손님' || userDept.includes('손님') || userDept === 'guest';
+  }
+
   // 현재 로그인한 사원이 현재 보고 있는 공정(라인)의 작업 제어 권한이 있는지 판별
   canControlCurrentLine() {
     const { isAuthorized, canEditPlan, currentEmpInfo } = this.getState();
     if (!isAuthorized) return false;
     if (canEditPlan) return true;
+    if (this.isGuestUser()) return false;
 
     const lineKey = String(this.currentLine);
     const lineLabel = LINE_META[lineKey]?.label || '';
@@ -260,7 +269,8 @@ export class InfinitePlanRenderer {
     } else {
       const items = dayData.items || [];
       const hasItems = items.length > 0;
-      const canControl = this.canControlCurrentLine();
+      const isGuest = this.isGuestUser();
+      const canControl = !isGuest && this.canControlCurrentLine();
       const rows = hasItems
         ? items
         : [{ seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-', note: '' }];
@@ -280,20 +290,24 @@ export class InfinitePlanRenderer {
         const endLabel = isCompleted ? '완료취소' : '완료';
         const isEndDisabled = status === 'idle';
 
-        const statusBadgeHtml =
-          status === 'running'
-            ? `<span class="status-badge-inline running"><span class="gear-icon">⚙️</span>진행중</span>`
-            : status === 'paused'
-            ? `<span class="status-badge-inline paused">⏸ 불량중단</span>`
-            : status === 'completed'
-            ? `<span class="status-badge-inline completed">✔ 완료</span>`
-            : '';
+        // 손님 계정은 진행 상태 배지, 작업 버튼, 시간 로그 전부 비노출
+        const statusBadgeHtml = isGuest
+          ? ''
+          : status === 'running'
+          ? `<span class="status-badge-inline running"><span class="gear-icon">⚙️</span>진행중</span>`
+          : status === 'paused'
+          ? `<span class="status-badge-inline paused">⏸ 불량중단</span>`
+          : status === 'completed'
+          ? `<span class="status-badge-inline completed">✔ 완료</span>`
+          : '';
 
-        const logsHtml = logs.map(log => `
-          <span class="time-tag ${escapeHtml(log.type)}">
-            [${escapeHtml(log.label)}] ${escapeHtml(log.time)}
-          </span>
-        `).join('');
+        const logsHtml = isGuest
+          ? ''
+          : logs.map(log => `
+              <span class="time-tag ${escapeHtml(log.type)}">
+                [${escapeHtml(log.label)}] ${escapeHtml(log.time)}
+              </span>
+            `).join('');
 
         const workBtnsHtml = canControl ? `
           <div class="item-work-btns">
@@ -318,7 +332,7 @@ export class InfinitePlanRenderer {
           </div>
         ` : '';
 
-        const workBarHtml = (hasItems && (canControl || logsHtml)) ? `
+        const workBarHtml = (!isGuest && hasItems && (canControl || logsHtml)) ? `
           <div class="item-work-bar">
             ${workBtnsHtml}
             ${logsHtml ? `<div class="item-work-logs">${logsHtml}</div>` : ''}

@@ -263,17 +263,22 @@ const authTabsWrap = document.querySelector('.auth-tabs');
 const signupDeptSelect = document.getElementById('signup-dept');
 const signupNameInput = document.getElementById('signup-name');
 const signupIdInput = document.getElementById('signup-id');
+const signupPasswordInput = document.getElementById('signup-password');
 const btnSignup = document.getElementById('btn-signup');
 
 function updateSignupFieldsLock() {
   const hasDept = Boolean(signupDeptSelect?.value);
   if (signupNameInput) {
     signupNameInput.disabled = !hasDept;
-    signupNameInput.placeholder = hasDept ? '2. 성명 (예: 홍길동)' : '2. 성명 (공정 선택 후 입력)';
+    signupNameInput.placeholder = hasDept ? '2. 성명' : '2. 성명 (공정 선택 후 입력)';
   }
   if (signupIdInput) {
     signupIdInput.disabled = !hasDept;
-    signupIdInput.placeholder = hasDept ? '3. 사번 (예: 202401)' : '3. 사번 (공정 선택 후 입력)';
+    signupIdInput.placeholder = hasDept ? '3. 사번' : '3. 사번 (공정 선택 후 입력)';
+  }
+  if (signupPasswordInput) {
+    signupPasswordInput.disabled = !hasDept;
+    signupPasswordInput.placeholder = hasDept ? '4. 비밀번호' : '4. 비밀번호 (공정 선택 후 입력)';
   }
   if (btnSignup) {
     btnSignup.disabled = !hasDept;
@@ -443,6 +448,7 @@ tabSignup.addEventListener('click', () => showAuthTab('signup'));
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const empId = sanitizeId(document.getElementById('login-id').value);
+  const inputPw = document.getElementById('login-password').value.trim();
   const loginError = document.getElementById('login-error');
   const btnLogin = document.getElementById('btn-login');
 
@@ -454,8 +460,8 @@ loginForm.addEventListener('submit', async (e) => {
     const snap = await get(ref(db, `employees/${empId}`));
     const emp = snap.val();
 
-    if (!emp) {
-      loginError.textContent = '등록되지 않은 사번입니다.';
+    if (!emp || String(emp.password) !== inputPw) {
+      loginError.textContent = '사번 또는 비밀번호가 올바르지 않습니다.';
       return;
     }
 
@@ -474,6 +480,7 @@ signupForm.addEventListener('submit', async (e) => {
   const dept = signupDeptSelect?.value.trim() || '';
   const name = signupNameInput.value.trim();
   const empId = sanitizeId(signupIdInput.value);
+  const password = document.getElementById('signup-password').value.trim();
   const signupError = document.getElementById('signup-error');
 
   signupError.textContent = '';
@@ -503,6 +510,7 @@ signupForm.addEventListener('submit', async (e) => {
     await set(ref(db, `employees/${empId}`), {
       name,
       dept,
+      password,
       active: false,
       canEdit: false,
       createdAt: new Date().toISOString().slice(0, 10)
@@ -811,6 +819,8 @@ function renderWeeklyOverviewTable() {
     return;
   }
 
+  const isGuest = planRenderer.isGuestUser();
+
   const lineConfigs = [
     { key: '1', label: '1호기' },
     { key: '2', label: '2호기' },
@@ -859,8 +869,9 @@ function renderWeeklyOverviewTable() {
         if (item && (item.name || item.qty || item.note)) {
           const seqPrefix = item.seq && item.seq !== '-' ? `${item.seq}. ` : `${r + 1}. `;
           const qtySuffix = item.qty && item.qty !== '-' ? ` ${item.qty}` : '';
-          const statusTag =
-            item.workStatus === 'running' ? `<span class="ov-status-dot running">진행중</span>`
+          const statusTag = isGuest
+            ? ''
+            : item.workStatus === 'running' ? `<span class="ov-status-dot running">진행중</span>`
             : item.workStatus === 'paused' ? `<span class="ov-status-dot paused">중단</span>`
             : item.workStatus === 'completed' ? `<span class="ov-status-dot completed">완료</span>`
             : '';

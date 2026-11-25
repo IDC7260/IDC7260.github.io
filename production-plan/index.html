@@ -63,7 +63,8 @@
 
       <!-- 로그인 폼 -->
       <form id="login-form">
-        <input type="text" id="login-id" placeholder="사번 (예: 1001)" required autocomplete="username" />
+        <input type="text" id="login-id" placeholder="사번" required autocomplete="username" />
+        <input type="password" id="login-password" placeholder="비밀번호" required autocomplete="current-password" />
         <p id="login-error" class="login-error"></p>
         <button type="submit" id="btn-login" class="login-submit-btn">로그인 후 계획서 보기</button>
       </form>
@@ -71,14 +72,16 @@
       <!-- 회원가입 신청 폼 -->
       <form id="signup-form" style="display: none;">
         <select id="signup-dept" class="login-select" required>
-          <option value="" disabled selected>1. 소속 라인을 먼저 선택하세요</option>
+          <option value="" disabled selected>1. 소속을 먼저 선택하세요</option>
           <option value="임프린팅">임프린팅</option>
           <option value="1호기">1호기</option>
           <option value="2호기">2호기</option>
           <option value="공통/관리">공통/관리</option>
+          <option value="손님">손님</option>
         </select>
-        <input type="text" id="signup-name" placeholder="2. 성명 (소속 선택 후 입력)" required disabled />
-        <input type="text" id="signup-id" placeholder="3. 사번 (소속 선택 후 입력)" required disabled />
+        <input type="text" id="signup-name" placeholder="2. 성명" required disabled />
+        <input type="text" id="signup-id" placeholder="3. 사번" required disabled />
+        <input type="password" id="signup-password" placeholder="4. 비밀번호" required disabled />
         <p id="signup-error" class="login-error"></p>
         <button type="submit" id="btn-signup" class="login-submit-btn" disabled>열람 권한 신청</button>
       </form>
