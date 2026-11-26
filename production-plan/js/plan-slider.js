@@ -4,6 +4,7 @@ import { LINE_META, escapeHtml } from './utils.js';
 const PUSH_WORKER_URL = 'https://plan-push-proxy.idc7260-fa1.workers.dev/';
 const APP_TARGET_URL = 'https://idc7260.github.io/production-plan/';
 
+// 작업 완료 관리자 푸시 알림
 async function sendWorkCompletedPush({ lineLabel, dayLabel, itemName, itemQty, timeStr, url = APP_TARGET_URL }) {
   if (!PUSH_WORKER_URL) return;
 
@@ -24,6 +25,32 @@ async function sendWorkCompletedPush({ lineLabel, dayLabel, itemName, itemQty, t
     });
   } catch (err) {
     console.warn('관리자 푸시 알림 발송 실패:', err);
+  }
+}
+
+// 불량중단 관리자 푸시 알림 (사유 포함)
+async function sendWorkPausedPush({ lineLabel, dayLabel, itemName, itemQty, timeStr, reason, url = APP_TARGET_URL }) {
+  if (!PUSH_WORKER_URL) return;
+
+  try {
+    await fetch(PUSH_WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'pause',
+        lineLabel,
+        dayLabel,
+        itemName,
+        itemQty,
+        timeStr,
+        reason,
+        url
+      })
+    });
+  } catch (err) {
+    console.warn('관리자 불량중단 푸시 알림 발송 실패:', err);
   }
 }
 
@@ -201,14 +228,25 @@ export class InfinitePlanRenderer {
         timeLogs: nextLogs
       });
 
+      const lineLabel = LINE_META[lineKey]?.label || lineKey;
+
       if (action === 'complete') {
-        const lineLabel = LINE_META[lineKey]?.label || lineKey;
         sendWorkCompletedPush({
           lineLabel,
           dayLabel: targetDay.dayLabel || '',
           itemName: targetItem.name || '',
           itemQty: targetItem.qty || '',
           timeStr,
+          url: APP_TARGET_URL
+        });
+      } else if (action === 'pause') {
+        sendWorkPausedPush({
+          lineLabel,
+          dayLabel: targetDay.dayLabel || '',
+          itemName: targetItem.name || '',
+          itemQty: targetItem.qty || '',
+          timeStr,
+          reason,
           url: APP_TARGET_URL
         });
       }
