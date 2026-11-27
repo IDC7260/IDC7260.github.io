@@ -67,12 +67,13 @@ document.getElementById('btn-admin-logout').addEventListener('click', () => {
   window.location.reload();
 });
 
-// 관리자 직접 사원 등록
+// 관리자 직접 사원 등록 부분
 document.getElementById('create-emp-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const empId = sanitizeId(document.getElementById('emp-id').value);
   const name = document.getElementById('emp-name').value.trim();
   const dept = document.getElementById('emp-dept').value;
+  const company = document.getElementById('emp-company').value.trim();
   const password = document.getElementById('emp-password').value.trim();
   const msgEl = document.getElementById('create-msg');
 
@@ -90,6 +91,7 @@ document.getElementById('create-emp-form').addEventListener('submit', async (e) 
     await set(ref(db, `employees/${empId}`), {
       name,
       dept,
+      company: dept === '손님' ? company : '', // 손님일 때만 회사 키워드 저장
       password,
       active: false,
       canEdit: false,
@@ -118,13 +120,19 @@ function watchEmployees() {
 
     const sorted = Object.entries(data).sort((a, b) => Number(a[1].active) - Number(b[1].active));
 
+    // 사원 목록 실시간 관리 함수 내부의 버튼 렌더링 및 이벤트 연결 부
     tbody.innerHTML = sorted.map(([empId, emp]) => {
       const canEdit = emp.canEdit === true;
+      const isGuest = (emp.dept || '').trim() === '손님';
+
       return `
         <tr class="emp-card-row" style="${!emp.active ? 'background:#fffbeb;' : ''}">
           <td><strong>${empId}</strong></td>
           <td>${emp.name || '-'}</td>
-          <td>${emp.dept || '-'}</td>
+          <td>
+            ${emp.dept || '-'}
+            ${isGuest && emp.company ? `<br><span style="font-size:0.75rem; color:#2563eb; font-weight:700;">[키워드: ${emp.company}]</span>` : ''}
+          </td>
           <td><code style="background:#f1f5f9; padding:3px 6px; border-radius:4px;">${emp.password || '-'}</code></td>
           <td>
             <span class="${emp.active ? 'status-active' : 'status-blocked'}">
@@ -145,6 +153,12 @@ function watchEmployees() {
               style="background:#0f766e; color:#fff;">
               소속변경
             </button>
+            ${isGuest ? `
+              <button type="button" class="btn-sm btn-company-change" data-id="${empId}" data-name="${emp.name}" data-company="${emp.company || ''}"
+                style="background:#2563eb; color:#fff;">
+                회사변경
+              </button>
+            ` : ''}
             <button type="button" class="btn-sm btn-pw" data-id="${empId}" data-name="${emp.name}"
               style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">
               비번변경
@@ -157,6 +171,22 @@ function watchEmployees() {
         </tr>
       `;
     }).join('');
+
+    // 회사 키워드 변경 이벤트 핸들러 추가
+    tbody.querySelectorAll('.btn-company-change').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        const currentCompany = btn.dataset.company;
+        
+        const newCompany = prompt(`'${name} (${id})' 손님 계정의 새 회사 키워드를 입력하세요\n(예: 현대, 삼성 등):`, currentCompany);
+        if (newCompany !== null) {
+          const trimmed = newCompany.trim();
+          await update(ref(db, `employees/${id}`), { company: trimmed });
+          alert(`회사 키워드가 [${trimmed || '없음'}] (으)로 변경되었습니다.`);
+        }
+      });
+    });
 
     // 승인/차단 토글 이벤트
     tbody.querySelectorAll('.btn-toggle').forEach(btn => {

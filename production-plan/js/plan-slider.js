@@ -75,6 +75,13 @@ export class InfinitePlanRenderer {
     return userDept === '손님' || userDept.includes('손님') || userDept === 'guest';
   }
 
+  // 손님 계정의 회사 키워드 반환
+  getGuestCompanyKeyword() {
+    const { currentEmpInfo } = this.getState();
+    if (!this.isGuestUser()) return '';
+    return (currentEmpInfo?.company || '').trim().toLowerCase();
+  }
+
   // 현재 로그인한 사원이 현재 보고 있는 공정(라인)의 작업 제어 권한이 있는지 판별
   canControlCurrentLine() {
     const { isAuthorized, canEditPlan, currentEmpInfo } = this.getState();
@@ -321,14 +328,28 @@ export class InfinitePlanRenderer {
       const items = dayData.items || [];
       const hasItems = items.length > 0;
       const isGuest = this.isGuestUser();
+      const guestCompany = this.getGuestCompanyKeyword();
       const canControl = !isGuest && this.canControlCurrentLine();
       const rows = hasItems
         ? items
         : [{ seq: '-', name: '등록된 생산 계획 없음', qty: '-', process: '-', note: '' }];
 
       const rowsHtml = rows.map((r, itemIdx) => {
-        const status = r.workStatus || 'idle';
-        const logs = Array.isArray(r.timeLogs) ? r.timeLogs : [];
+        let isMatchedForGuest = true;
+        if (isGuest && guestCompany) {
+          const itemName = (r.name || '').toLowerCase();
+          const itemNote = (r.note || '').toLowerCase();
+          isMatchedForGuest = itemName.includes(guestCompany) || itemNote.includes(guestCompany);
+        }
+
+        const displaySeq = isMatchedForGuest ? escapeHtml(r.seq ?? '-') : '';
+        const displayName = isMatchedForGuest ? escapeHtml(r.name || '-') : '';
+        const displayQty = isMatchedForGuest ? escapeHtml(r.qty || '-') : '';
+        const displayProcess = isMatchedForGuest ? escapeHtml(r.process || '-') : '';
+        const displayNote = (isMatchedForGuest && r.note) ? escapeHtml(r.note) : '';
+
+        const status = (isGuest && !isMatchedForGuest) ? 'idle' : (r.workStatus || 'idle');
+        const logs = (isGuest && !isMatchedForGuest) ? [] : (Array.isArray(r.timeLogs) ? r.timeLogs : []);
 
         const isStartDisabled = status !== 'idle';
         const isPauseOrResumeDisabled = status === 'idle' || status === 'completed';
@@ -392,19 +413,19 @@ export class InfinitePlanRenderer {
 
         return `
           <tr>
-            <td><strong>${escapeHtml(r.seq ?? '-')}</strong></td>
+            <td><strong>${displaySeq}</strong></td>
             <td style="text-align:left; padding-left:16px;">
               <div>
-                <strong style="white-space: pre-line;">${escapeHtml(r.name || '-')}</strong>
+                <strong style="white-space: pre-line;">${displayName}</strong>
                 ${statusBadgeHtml}
               </div>
-              ${r.note ? `<div style="font-size:0.8em; color:#64748b; margin-top:4px; font-weight:500; white-space: pre-line;">※ ${escapeHtml(r.note)}</div>` : ''}
+              ${displayNote ? `<div style="font-size:0.8em; color:#64748b; margin-top:4px; font-weight:500; white-space: pre-line;">※ ${displayNote}</div>` : ''}
               ${workBarHtml}
             </td>
-            <td><strong>${escapeHtml(r.qty || '-')}</strong></td>
+            <td><strong>${displayQty}</strong></td>
             <td>
-              <span class="process-badge ${!r.process || r.process === '-' ? 'process-empty' : ''}">
-                ${escapeHtml(r.process || '-')}
+              <span class="process-badge ${!displayProcess || displayProcess === '-' ? 'process-empty' : ''}">
+                ${displayProcess}
               </span>
             </td>
           </tr>
@@ -507,9 +528,9 @@ export class InfinitePlanRenderer {
     });
 
     this.addListener(this.viewport, 'wheel', (e) => {
-      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      if (Math.abs(delta) > 20) {
-        this.step(delta > 0 ? 1 : -1);
+      const gear = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(gear) > 20) {
+        this.step(gear > 0 ? 1 : -1);
       }
     }, { passive: true });
 

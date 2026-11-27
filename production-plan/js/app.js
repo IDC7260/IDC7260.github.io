@@ -820,6 +820,7 @@ function renderWeeklyOverviewTable() {
   }
 
   const isGuest = planRenderer.isGuestUser();
+  const guestCompany = planRenderer.getGuestCompanyKeyword(); // 손님 회사 키워드 가져오기
 
   const lineConfigs = [
     { key: '1', label: '1호기' },
@@ -866,7 +867,16 @@ function renderWeeklyOverviewTable() {
 
       for (let d = 0; d < 7; d++) {
         const item = lineDays[d]?.items?.[r];
-        if (item && (item.name || item.qty || item.note)) {
+
+        // 손님 계정 회사 키워드 매칭 검사
+        let isMatchedForGuest = true;
+        if (isGuest && guestCompany) {
+          const itemName = (item?.name || '').toLowerCase();
+          const itemNote = (item?.note || '').toLowerCase();
+          isMatchedForGuest = itemName.includes(guestCompany) || itemNote.includes(guestCompany);
+        }
+
+        if (item && (item.name || item.qty || item.note) && (!isGuest || isMatchedForGuest)) {
           const seqPrefix = item.seq && item.seq !== '-' ? `${item.seq}. ` : `${r + 1}. `;
           const qtySuffix = item.qty && item.qty !== '-' ? ` ${item.qty}` : '';
           const statusTag = isGuest
